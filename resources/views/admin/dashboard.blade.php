@@ -23,10 +23,6 @@
 
             <!-- Action Cluster -->
             <div class="flex flex-wrap items-center gap-space-sm">
-                <a href="http://localhost:3000" target="_blank" class="h-10 px-space-md rounded-xl bg-secondary/15 text-secondary border border-secondary/30 font-label-md text-label-md font-semibold flex items-center gap-space-xs shadow-sm hover:bg-secondary/25 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">open_in_new</span>
-                    <span>Lihat Web App (Port 3000)</span>
-                </a>
                 <button class="h-10 px-space-md rounded-xl bg-surface-container-low hover:bg-surface-container-high text-primary font-label-md text-label-md flex items-center gap-space-xs shadow-[0_1px_4px_rgba(15,62,54,0.04)] transition-all cursor-pointer" type="button" onclick="exportAnalyticsCSV()">
                     <span class="material-symbols-outlined text-[18px]">download</span>
                     <span>Unduh Laporan CSV</span>

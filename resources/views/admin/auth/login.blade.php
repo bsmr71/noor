@@ -95,10 +95,10 @@
                             id="email"
                             type="email"
                             name="email"
-                            value="{{ old('email', 'admin@noor.app') }}"
+                            value="{{ old('email') }}"
                             required
                             autofocus
-                            placeholder="admin@noor.app"
+                            placeholder="Masukkan email administrator"
                             class="w-full h-11 pl-10 pr-3 rounded-xl bg-surface-container-low border border-surface-container-high text-xs sm:text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-medium"
                         />
                     </div>
@@ -115,7 +115,6 @@
                             id="password"
                             type="password"
                             name="password"
-                            value="password"
                             required
                             placeholder="••••••••"
                             class="w-full h-11 pl-10 pr-10 rounded-xl bg-surface-container-low border border-surface-container-high text-xs sm:text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all font-medium"
@@ -133,7 +132,7 @@
                 <!-- Remember Me & Info -->
                 <div class="flex items-center justify-between text-xs pt-1">
                     <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <input type="checkbox" name="remember" checked class="w-4 h-4 rounded text-primary focus:ring-primary border-surface-container-high">
+                        <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }} class="w-4 h-4 rounded text-primary focus:ring-primary border-surface-container-high">
                         <span class="text-on-surface-variant font-medium">Ingat Saya di Perangkat Ini</span>
                     </label>
                 </div>
@@ -147,31 +146,6 @@
                     <span>Masuk ke Console</span>
                 </button>
             </form>
-
-            <!-- Quick Demo Credential Helper Card -->
-            <div class="mt-5 p-3 rounded-2xl bg-surface-container-low/80 border border-surface-container-high">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold text-primary flex items-center gap-1">
-                        <span class="material-symbols-outlined text-[14px] text-secondary">key</span>
-                        Akun Administrator Bawaan:
-                    </span>
-                    <button type="button" onclick="fillAdminCredentials()" class="text-[10px] font-bold text-secondary hover:underline cursor-pointer">
-                        Isi Otomatis
-                    </button>
-                </div>
-                <div class="mt-1 text-[11px] text-on-surface-variant font-mono space-y-0.5">
-                    <p>Email: <strong class="text-primary">admin@noor.app</strong></p>
-                    <p>Password: <strong class="text-primary">password</strong></p>
-                </div>
-            </div>
-
-            <!-- Footer Links -->
-            <div class="mt-4 pt-4 border-t border-surface-container-high text-center">
-                <a href="http://localhost:3000" target="_blank" class="text-xs text-primary font-semibold hover:underline inline-flex items-center gap-1">
-                    <span>Buka Aplikasi Web Pengguna (Port 3000)</span>
-                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                </a>
-            </div>
         </div>
 
         <p class="text-center text-[11px] text-emerald-200/50 mt-4">
@@ -190,11 +164,6 @@
                 pwd.type = 'password';
                 icon.innerText = 'visibility';
             }
-        }
-
-        function fillAdminCredentials() {
-            document.getElementById('email').value = 'admin@noor.app';
-            document.getElementById('password').value = 'password';
         }
     </script>
 </body>

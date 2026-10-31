@@ -250,11 +250,6 @@
             </div>
 
             <div class="flex items-center gap-space-md">
-                <a href="http://localhost:3000" target="_blank" class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-label-sm font-semibold hover:opacity-90 transition-opacity shadow-[0_1px_4px_rgba(15,62,54,0.04)]" title="Buka aplikasi web pengguna">
-                    <span class="material-symbols-outlined text-[15px]">open_in_new</span>
-                    <span>Lihat Web App</span>
-                </a>
-
                 <div class="flex items-center gap-space-xs px-space-sm py-1.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed shadow-[0_1px_4px_rgba(15,62,54,0.04)]">
                     <span class="material-symbols-outlined text-[16px] text-primary">sync_saved_locally</span>
                     <span class="font-label-sm text-label-sm font-semibold">API Kemenag Sinkron</span>
