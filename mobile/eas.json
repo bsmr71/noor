@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://noor.bsmrlab.com/api/v1",
+        "EXPO_PUBLIC_APP_ID": "com.noor.islamicapp"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://noor.bsmrlab.com/api/v1",
+        "EXPO_PUBLIC_APP_ID": "com.noor.islamicapp"
+      }
+    }
+  }
+}
+

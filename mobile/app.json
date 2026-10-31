@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Noor - Muslim Pro",
+    "slug": "noor-muslim-pro",
+    "version": "1.0.2",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#002721"
+    },
+    "userInterfaceStyle": "light",
+    "primaryColor": "#002721",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.noor.islamicapp",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "NSLocationWhenInUseUsageDescription": "Noor membutuhkan lokasi untuk menentukan arah kiblat dan jadwal sholat akurat daerah Anda."
+      }
+    },
+    "android": {
+      "package": "com.noor.islamicapp",
+      "versionCode": 3,
+      "adaptiveIcon": {
+        "backgroundColor": "#002721",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-audio"
+    ]
+  }
+}

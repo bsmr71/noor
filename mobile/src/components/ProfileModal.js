@@ -1,0 +1,1153 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  TextInput,
+  Switch,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Colors } from '../theme/colors';
+import { Fonts } from '../theme/fonts';
+import { QORI_LIST, MUADZIN_LIST, AVATAR_OPTIONS } from '../data/recitersData';
+import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
+import { ADMIN_CONSOLE_URL } from '../services/apiClient';
+import KeyboardSafeModalWrapper from './KeyboardSafeModalWrapper';
+import KeyboardAwareScrollView from './KeyboardAwareScrollView';
+
+export default function ProfileModal({
+  visible,
+  onClose,
+  onOpenAuth,
+  onOpenDonationHistory,
+  onOpenPremium,
+  onLogout,
+  userProfile,
+  onUpdateProfile,
+  selectedQori,
+  onSelectQori,
+  selectedMuadzin,
+  onSelectMuadzin,
+}) {
+  const [activeTab, setActiveTab] = useState('profil'); // 'profil', 'qori', 'muadzin', 'setelan'
+  const [name, setName] = useState(userProfile?.name || 'Hamba Allah');
+  const [email, setEmail] = useState(userProfile?.email || 'bismillah@noor.app');
+  const [bio, setBio] = useState(userProfile?.bio || 'Senantiasa berikhtiar istiqomah dalam tilawah & doa.');
+  const [selectedAvatar, setSelectedAvatar] = useState(userProfile?.avatar || AVATAR_OPTIONS[0].url);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Audio Preview Player
+  const [previewingId, setPreviewingId] = useState(null);
+
+  // Settings State
+  const [showLatin, setShowLatin] = useState(true);
+  const [showTrans, setShowTrans] = useState(true);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [adzanReminder, setAdzanReminder] = useState(true);
+
+  const stopPreviewAudio = () => {
+    stopCurrentAudio();
+    setPreviewingId(null);
+  };
+
+  const handlePlayPreview = (id, url) => {
+    if (previewingId === id) {
+      stopPreviewAudio();
+      return;
+    }
+
+    stopPreviewAudio();
+    setPreviewingId(id);
+    playAudioUrl(url);
+  };
+
+  const handleClose = async () => {
+    await stopPreviewAudio();
+    onClose();
+  };
+
+  const handleSaveProfile = () => {
+    onUpdateProfile({
+      name,
+      email,
+      bio,
+      avatar: selectedAvatar,
+    });
+    setIsEditing(false);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={handleClose}>
+      <KeyboardSafeModalWrapper backdropColor="#00000060">
+        <View style={styles.modalSheet}>
+          {/* Top Sheet Bar */}
+          <View style={styles.sheetTopBar}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons name="account-cog" size={22} color={Colors.primary} />
+              <Text style={styles.sheetTitle}>Pengaturan & Akun</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {userProfile?.isLoggedIn && (
+                <TouchableOpacity onPress={onLogout} style={styles.topLogoutBtn} activeOpacity={0.7}>
+                  <MaterialCommunityIcons name="logout" size={15} color="#d32f2f" />
+                  <Text style={styles.topLogoutText}>Keluar</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={22} color="#191c1b" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* 4 Tabs Grid */}
+          <View style={styles.tabsGrid}>
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'profil' && styles.tabBtnActive]}
+              onPress={() => setActiveTab('profil')}
+            >
+              <MaterialCommunityIcons
+                name="account-circle-outline"
+                size={18}
+                color={activeTab === 'profil' ? Colors.primary : '#6f7975'}
+              />
+              <Text style={[styles.tabBtnText, activeTab === 'profil' && styles.tabBtnTextActive]}>
+                Profil
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'qori' && styles.tabBtnActive]}
+              onPress={() => setActiveTab('qori')}
+            >
+              <MaterialCommunityIcons
+                name="record-circle-outline"
+                size={18}
+                color={activeTab === 'qori' ? Colors.primary : '#6f7975'}
+              />
+              <Text style={[styles.tabBtnText, activeTab === 'qori' && styles.tabBtnTextActive]}>
+                Qori ({QORI_LIST.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'muadzin' && styles.tabBtnActive]}
+              onPress={() => setActiveTab('muadzin')}
+            >
+              <MaterialCommunityIcons
+                name="bullhorn-outline"
+                size={18}
+                color={activeTab === 'muadzin' ? Colors.primary : '#6f7975'}
+              />
+              <Text style={[styles.tabBtnText, activeTab === 'muadzin' && styles.tabBtnTextActive]}>
+                Muadzin ({MUADZIN_LIST.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'setelan' && styles.tabBtnActive]}
+              onPress={() => setActiveTab('setelan')}
+            >
+              <MaterialCommunityIcons
+                name="cog-outline"
+                size={18}
+                color={activeTab === 'setelan' ? Colors.primary : '#6f7975'}
+              />
+              <Text style={[styles.tabBtnText, activeTab === 'setelan' && styles.tabBtnTextActive]}>
+                Setelan
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Tab Content */}
+          <KeyboardAwareScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={styles.sheetContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* TAB 1: PROFIL */}
+            {activeTab === 'profil' && (
+              <View style={{ gap: 14 }}>
+                {/* Profile Card */}
+                <View style={styles.profileCard}>
+                  <Image source={{ uri: selectedAvatar }} style={styles.profileBigAvatar} />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.profileName}>{name}</Text>
+                      {userProfile?.role === 'admin' ? (
+                        <View style={{ backgroundColor: '#fef3c7', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: '#f59e0b' }}>
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#92400e' }}>👑 Super Admin</Text>
+                        </View>
+                      ) : userProfile?.role === 'ustadz' ? (
+                        <View style={{ backgroundColor: '#ccfbf1', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: '#2dd4bf' }}>
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#115e59' }}>🎓 Ustadz / Qori</Text>
+                        </View>
+                      ) : (
+                        <View style={{ backgroundColor: '#dcfce7', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: '#86efac' }}>
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#166534' }}>🕌 Jamaah Aktif</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.profileEmail}>{email}</Text>
+                    <Text style={styles.profileBio} numberOfLines={2}>"{bio}"</Text>
+                  </View>
+                </View>
+
+                {/* 3 Stat Cards */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>7 Hari</Text>
+                    <Text style={styles.statLabel}>Istiqomah</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={[styles.statNumber, { color: Colors.secondary }]}>1 Juz</Text>
+                    <Text style={styles.statLabel}>Target Harian</Text>
+                  </View>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNumber}>Kemenag</Text>
+                    <Text style={styles.statLabel}>Standar Hisab</Text>
+                  </View>
+                </View>
+
+                {/* Admin Noor Console Direct Shortcut (Only for Admin Role) */}
+                {userProfile?.role === 'admin' && (
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#fffbeb',
+                      borderColor: '#fe932c',
+                      borderWidth: 1.5,
+                      borderRadius: 14,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                      gap: 8,
+                      marginBottom: 10,
+                      shadowColor: '#fe932c',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    }}
+                    onPress={() => Linking.openURL(ADMIN_CONSOLE_URL)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="shield-crown" size={18} color="#b45309" />
+                    <Text style={{ fontSize: 12.5, fontWeight: 'bold', color: '#92400e' }}>
+                      Buka Noor Console Administrator
+                    </Text>
+                    <MaterialCommunityIcons name="open-in-new" size={16} color="#b45309" />
+                  </TouchableOpacity>
+                )}
+
+                {/* Noor+ Bebas Iklan Card */}
+                {onOpenPremium && (
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: userProfile?.is_premium ? '#002721' : '#fffbeb',
+                      borderColor: userProfile?.is_premium ? '#fe932c' : '#fde68a',
+                      borderWidth: 1.5,
+                      borderRadius: 14,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 8,
+                    }}
+                    onPress={onOpenPremium}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <MaterialCommunityIcons
+                        name="crown"
+                        size={20}
+                        color={userProfile?.is_premium ? '#fe932c' : '#b45309'}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 'bold',
+                            color: userProfile?.is_premium ? '#ffffff' : '#92400e',
+                          }}
+                        >
+                          {userProfile?.is_premium
+                            ? `${userProfile.premium_label || 'Member Noor+'} • Bebas Iklan Aktif`
+                            : 'Noor+ Bebas Iklan (Hapus Banner Sponsor)'}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 10.5,
+                            color: userProfile?.is_premium ? '#bbeddd' : '#b45309',
+                            marginTop: 1,
+                          }}
+                        >
+                          {userProfile?.is_premium
+                            ? 'Tap untuk melihat masa berlaku & riwayat invoice'
+                            : 'Mulai Rp 15.000 • Ibadah lebih tenang tanpa iklan'}
+                        </Text>
+                      </View>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={18}
+                      color={userProfile?.is_premium ? '#fe932c' : '#b45309'}
+                    />
+                  </TouchableOpacity>
+                )}
+
+                {/* Riwayat Donasi Saya Shortcut */}
+                {userProfile?.isLoggedIn && onOpenDonationHistory && (
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#ecfdf5',
+                      borderColor: '#a7f3d0',
+                      borderWidth: 1,
+                      borderRadius: 14,
+                      paddingVertical: 11,
+                      paddingHorizontal: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'row',
+                      gap: 8,
+                    }}
+                    onPress={onOpenDonationHistory}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="receipt-text-check-outline" size={18} color="#047857" />
+                    <Text style={{ fontSize: 12.5, fontWeight: 'bold', color: '#065f46' }}>
+                      Riwayat Donasi & Kwitansi Saya
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Login / Register / Logout Actions */}
+                {userProfile?.isLoggedIn ? (
+                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#f2f4f3',
+                        borderRadius: 14,
+                        paddingVertical: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 6,
+                        borderWidth: 1,
+                        borderColor: '#eceeed',
+                      }}
+                      onPress={() => onOpenAuth('login')}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="account-switch-outline" size={16} color={Colors.primary} />
+                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: Colors.primary }}>
+                        Ganti Akun
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#ffebee',
+                        borderRadius: 14,
+                        paddingVertical: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 6,
+                        borderWidth: 1,
+                        borderColor: '#ffcdd2',
+                      }}
+                      onPress={onLogout}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="logout" size={16} color="#d32f2f" />
+                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#d32f2f' }}>
+                        Keluar Akun
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ gap: 8, marginBottom: 4 }}>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: Colors.primary,
+                        borderRadius: 14,
+                        paddingVertical: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 8,
+                        elevation: 2,
+                      }}
+                      onPress={() => onOpenAuth('login')}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="login" size={18} color="#ffffff" />
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#ffffff' }}>
+                        Masuk ke Akun Noor
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: '#ffe9d6',
+                        borderRadius: 14,
+                        paddingVertical: 11,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 8,
+                      }}
+                      onPress={() => onOpenAuth('register')}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="account-plus-outline" size={18} color={Colors.secondary} />
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: Colors.secondary }}>
+                        Daftar Akun Baru (Register)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Edit Profile Action */}
+                {!isEditing ? (
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => setIsEditing(true)}
+                  >
+                    <Ionicons name="pencil" size={16} color={Colors.primary} />
+                    <Text style={styles.editBtnText}>Ubah Data Akun & Foto Profil</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.editFormBox}>
+                    <Text style={styles.formTitle}>Pilih Foto Profil</Text>
+                    <View style={styles.avatarList}>
+                      {AVATAR_OPTIONS.map((av) => (
+                        <TouchableOpacity
+                          key={av.id}
+                          onPress={() => setSelectedAvatar(av.url)}
+                          style={[
+                            styles.avatarSelectRing,
+                            selectedAvatar === av.url && styles.avatarSelectRingActive,
+                          ]}
+                        >
+                          <Image source={{ uri: av.url }} style={styles.avatarMini} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={styles.inputLabel}>Nama Lengkap</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="Nama Anda"
+                    />
+
+                    <Text style={styles.inputLabel}>Email</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="Email"
+                      keyboardType="email-address"
+                    />
+
+                    <Text style={styles.inputLabel}>Bio Niat Harian</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={bio}
+                      onChangeText={setBio}
+                      placeholder="Niat ibadah..."
+                    />
+
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                      <TouchableOpacity
+                        style={[styles.saveBtn, { flex: 1 }]}
+                        onPress={handleSaveProfile}
+                      >
+                        <Text style={styles.saveBtnText}>Simpan</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.cancelBtn, { flex: 1 }]}
+                        onPress={() => setIsEditing(false)}
+                      >
+                        <Text style={styles.cancelBtnText}>Batal</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Selected Qori & Muadzin Badges */}
+                <View style={styles.activeSummaryBox}>
+                  <Text style={styles.summaryTitle}>SUARA & QORI AKTIF</Text>
+
+                  <TouchableOpacity
+                    style={styles.summaryItem}
+                    onPress={() => setActiveTab('qori')}
+                  >
+                    <MaterialCommunityIcons name="microphone" size={20} color={Colors.secondary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.summaryItemName}>{selectedQori?.name}</Text>
+                      <Text style={styles.summaryItemSub}>{selectedQori?.style}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#6f7975" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.summaryItem}
+                    onPress={() => setActiveTab('muadzin')}
+                  >
+                    <MaterialCommunityIcons name="bullhorn" size={20} color={Colors.secondary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.summaryItemName}>{selectedMuadzin?.name}</Text>
+                      <Text style={styles.summaryItemSub}>{selectedMuadzin?.title}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#6f7975" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* TAB 2: PILIHAN QORI */}
+            {activeTab === 'qori' && (
+              <View style={{ gap: 10 }}>
+                <Text style={styles.tabHeading}>Pilih Qori Murottal Al-Qur'an</Text>
+                <Text style={styles.tabSubheading}>
+                  Audio jernih 320kbps dari Makkah, Madinah, Mesir & Kuwait
+                </Text>
+
+                {QORI_LIST.map((q) => {
+                  const isSelected = selectedQori?.id === q.id;
+                  const isPlaying = previewingId === q.id;
+
+                  return (
+                    <View
+                      key={q.id}
+                      style={[styles.reciterCard, isSelected && styles.reciterCardSelected]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Image source={{ uri: q.avatar }} style={styles.reciterAvatar} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.reciterName}>{q.name}</Text>
+                            <View style={styles.reciterBadge}>
+                              <Text style={styles.reciterBadgeText}>{q.badge}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.reciterArabic}>{q.arabicName}</Text>
+                          <Text style={styles.reciterStyle}>{q.style}</Text>
+                        </View>
+                      </View>
+
+                      {/* Actions */}
+                      <View style={styles.reciterActionsRow}>
+                        <TouchableOpacity
+                          style={[styles.sampleBtn, isPlaying && styles.sampleBtnPlaying]}
+                          onPress={() => handlePlayPreview(q.id, q.previewUrl)}
+                        >
+                          <MaterialCommunityIcons
+                            name={isPlaying ? 'pause' : 'play'}
+                            size={16}
+                            color={isPlaying ? '#ffffff' : Colors.primary}
+                          />
+                          <Text style={[styles.sampleBtnText, isPlaying && { color: '#ffffff' }]}>
+                            {isPlaying ? 'Jeda' : 'Dengar Sampel'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.selectBtn, isSelected && styles.selectBtnActive]}
+                          onPress={() => onSelectQori(q)}
+                        >
+                          <Text style={[styles.selectBtnText, isSelected && styles.selectBtnTextActive]}>
+                            {isSelected ? '✓ Qori Aktif' : 'Pilih Qori'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* TAB 3: PILIHAN MUADZIN */}
+            {activeTab === 'muadzin' && (
+              <View style={{ gap: 10 }}>
+                <Text style={styles.tabHeading}>Pilih Muadzin Panggilan Sholat</Text>
+                <Text style={styles.tabSubheading}>
+                  Lantunan adzan merdu dari Masjidil Haram, Nabawi, Al-Aqsha, & Nusantara
+                </Text>
+
+                {MUADZIN_LIST.map((m) => {
+                  const isSelected = selectedMuadzin?.id === m.id;
+                  const isPlaying = previewingId === m.id;
+
+                  return (
+                    <View
+                      key={m.id}
+                      style={[styles.reciterCard, isSelected && styles.reciterCardSelected]}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Image source={{ uri: m.avatar }} style={styles.reciterAvatar} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.reciterName}>{m.name}</Text>
+                            <View style={styles.reciterBadge}>
+                              <Text style={styles.reciterBadgeText}>{m.badge}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.reciterArabic}>{m.arabicName}</Text>
+                          <Text style={styles.reciterStyle}>{m.title}</Text>
+                        </View>
+                      </View>
+
+                      {/* Actions */}
+                      <View style={styles.reciterActionsRow}>
+                        <TouchableOpacity
+                          style={[styles.sampleBtn, isPlaying && styles.sampleBtnPlaying]}
+                          onPress={() => handlePlayPreview(m.id, m.audioUrl)}
+                        >
+                          <MaterialCommunityIcons
+                            name={isPlaying ? 'pause' : 'volume-high'}
+                            size={16}
+                            color={isPlaying ? '#ffffff' : Colors.primary}
+                          />
+                          <Text style={[styles.sampleBtnText, isPlaying && { color: '#ffffff' }]}>
+                            {isPlaying ? 'Jeda' : 'Dengar Adzan'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.selectBtn, isSelected && styles.selectBtnActive]}
+                          onPress={() => onSelectMuadzin(m)}
+                        >
+                          <Text style={[styles.selectBtnText, isSelected && styles.selectBtnTextActive]}>
+                            {isSelected ? '✓ Muadzin Aktif' : 'Pilih Muadzin'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* TAB 4: SETELAN APLIKASI */}
+            {activeTab === 'setelan' && (
+              <View style={{ gap: 14 }}>
+                <Text style={styles.tabHeading}>Mushaf & Bacaan Al-Qur'an</Text>
+                
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Tampilkan Teks Latin</Text>
+                    <Text style={styles.settingDesc}>Transliterasi pengucapan huruf Arab</Text>
+                  </View>
+                  <Switch
+                    value={showLatin}
+                    onValueChange={setShowLatin}
+                    trackColor={{ false: '#e2e8e5', true: Colors.primary }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Terjemahan Bahasa Indonesia</Text>
+                    <Text style={styles.settingDesc}>Terjemahan resmi Kementerian Agama RI</Text>
+                  </View>
+                  <Switch
+                    value={showTrans}
+                    onValueChange={setShowTrans}
+                    trackColor={{ false: '#e2e8e5', true: Colors.primary }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Putar Otomatis Ayat Selanjutnya</Text>
+                    <Text style={styles.settingDesc}>Melanjutkan tilawah tanpa jeda</Text>
+                  </View>
+                  <Switch
+                    value={autoPlay}
+                    onValueChange={setAutoPlay}
+                    trackColor={{ false: '#e2e8e5', true: Colors.primary }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                <Text style={[styles.tabHeading, { marginTop: 10 }]}>Sholat & Notifikasi Adzan</Text>
+
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Pengingat 10 Menit Sebelum Adzan</Text>
+                    <Text style={styles.settingDesc}>Pemberitahuan persiapan sholat & wudhu</Text>
+                  </View>
+                  <Switch
+                    value={adzanReminder}
+                    onValueChange={setAdzanReminder}
+                    trackColor={{ false: '#e2e8e5', true: Colors.primary }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Metode Hisab Waktu Sholat</Text>
+                    <Text style={styles.settingDesc}>Resmi Kemenag RI (Bimas Islam)</Text>
+                  </View>
+                  <MaterialCommunityIcons name="check-decagram" size={20} color={Colors.secondary} />
+                </View>
+
+                {/* Sesi & Logout Section */}
+                <Text style={[styles.tabHeading, { marginTop: 14 }]}>Akun & Keamanan</Text>
+
+                {userProfile?.isLoggedIn ? (
+                  <View style={{ backgroundColor: '#f8faf9', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#eceeed', gap: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Image source={{ uri: userProfile?.avatar || selectedAvatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: Colors.primary }}>{userProfile?.name}</Text>
+                        <Text style={{ fontSize: 11, color: '#6f7975' }}>{userProfile?.email}</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: '#ffebee',
+                        borderRadius: 12,
+                        paddingVertical: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 8,
+                        borderWidth: 1,
+                        borderColor: '#ffcdd2',
+                      }}
+                      onPress={onLogout}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="logout" size={18} color="#d32f2f" />
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#d32f2f' }}>
+                        Keluar dari Akun (Logout)
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ backgroundColor: '#f8faf9', padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#eceeed', gap: 10 }}>
+                    <Text style={{ fontSize: 12, color: '#6f7975' }}>Anda saat ini menggunakan aplikasi sebagai Tamu.</Text>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: Colors.primary,
+                        borderRadius: 12,
+                        paddingVertical: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 8,
+                      }}
+                      onPress={() => onOpenAuth('login')}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="login" size={18} color="#ffffff" />
+                      <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#ffffff' }}>
+                        Masuk ke Akun Noor
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </KeyboardAwareScrollView>
+        </View>
+      </KeyboardSafeModalWrapper>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalSheet: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '90%',
+    flexShrink: 1,
+    overflow: 'hidden',
+    paddingBottom: 20,
+  },
+  sheetTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f3',
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#002721',
+    fontFamily: 'serif',
+  },
+  topLogoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ffebee',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  topLogoutText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#d32f2f',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  tabsGrid: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f3',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8e5',
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 2,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabBtnActive: {
+    borderBottomColor: Colors.primary,
+    backgroundColor: '#ffffff',
+  },
+  tabBtnText: {
+    fontSize: 11,
+    color: '#6f7975',
+    fontWeight: '600',
+  },
+  tabBtnTextActive: {
+    color: Colors.primary,
+    fontWeight: 'bold',
+  },
+  sheetScroll: {
+    paddingHorizontal: 16,
+  },
+  sheetContent: {
+    paddingVertical: 16,
+    paddingBottom: 40,
+  },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#002721',
+    borderRadius: 20,
+    padding: 16,
+    gap: 14,
+  },
+  profileBigAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#fe932c',
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    fontFamily: 'serif',
+  },
+  activePill: {
+    backgroundColor: '#fe932c',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  activePillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#002721',
+  },
+  profileEmail: {
+    fontSize: 11,
+    color: '#ffffffaa',
+    marginTop: 2,
+  },
+  profileBio: {
+    fontSize: 10,
+    color: '#ffffff88',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  statNumber: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#002721',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#6f7975',
+    marginTop: 2,
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f1f5f3',
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+  },
+  editBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#002721',
+  },
+  editFormBox: {
+    backgroundColor: '#f8faf9',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+    gap: 8,
+  },
+  formTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#002721',
+  },
+  avatarList: {
+    flexDirection: 'row',
+    gap: 10,
+    marginVertical: 6,
+  },
+  avatarSelectRing: {
+    borderRadius: 22,
+    padding: 2,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  avatarSelectRingActive: {
+    borderColor: Colors.secondary,
+  },
+  avatarMini: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6f7975',
+  },
+  textInput: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: '#191c1b',
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  saveBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  cancelBtn: {
+    backgroundColor: '#e2e8e5',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    color: '#6f7975',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  activeSummaryBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+    gap: 10,
+  },
+  summaryTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#6f7975',
+    letterSpacing: 0.8,
+  },
+  summaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  summaryItemName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#002721',
+  },
+  summaryItemSub: {
+    fontSize: 10,
+    color: '#6f7975',
+  },
+  tabHeading: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#002721',
+    fontFamily: 'serif',
+  },
+  tabSubheading: {
+    fontSize: 11,
+    color: '#6f7975',
+    marginBottom: 6,
+  },
+  reciterCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+    gap: 10,
+  },
+  reciterCardSelected: {
+    borderColor: Colors.secondary,
+    borderWidth: 1.5,
+    backgroundColor: '#fffdf9',
+  },
+  reciterAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+  },
+  reciterName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#002721',
+  },
+  reciterBadge: {
+    backgroundColor: '#fe932c20',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  reciterBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#c27803',
+  },
+  reciterArabic: {
+    fontSize: 11,
+    color: '#6f7975',
+    fontFamily: 'serif',
+  },
+  reciterStyle: {
+    fontSize: 10,
+    color: '#6f7975',
+    marginTop: 2,
+  },
+  reciterActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f3',
+  },
+  sampleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f3',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 4,
+  },
+  sampleBtnPlaying: {
+    backgroundColor: Colors.secondary,
+  },
+  sampleBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#002721',
+  },
+  selectBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f3',
+  },
+  selectBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  selectBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#002721',
+  },
+  selectBtnTextActive: {
+    color: '#ffffff',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  settingTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#002721',
+  },
+  settingDesc: {
+    fontSize: 11,
+    color: '#6f7975',
+    marginTop: 2,
+  },
+});
+
