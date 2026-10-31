@@ -37,6 +37,8 @@ export default function HomeScreen({
   onNavigateTab,
   userProfile,
   onOpenSurah,
+  selectedMuadzin,
+  onTestAdzan,
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [apiPrompt, setApiPrompt] = useState(null);
@@ -466,7 +468,7 @@ export default function HomeScreen({
           <TouchableOpacity
             style={styles.topCircleBtn}
             activeOpacity={0.8}
-            onPress={() => Alert.alert('Notifikasi Adzan', 'Pengingat adzan aktif untuk 5 waktu sholat.')}
+            onPress={() => onTestAdzan ? onTestAdzan(prayerStatus.nextPrayer || 'Dzuhur') : Alert.alert('Notifikasi Adzan', 'Pengingat adzan aktif untuk 5 waktu sholat.')}
           >
             <MaterialCommunityIcons name="bell-ring-outline" size={18} color="#002721" />
             <View style={styles.notificationDot} />
@@ -720,6 +722,24 @@ export default function HomeScreen({
               </View>
             );
           })}
+        </View>
+
+        {/* Adzan Quick Action & Audio Test */}
+        <View style={styles.heroAdzanBar}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <MaterialCommunityIcons name="volume-high" size={15} color="#fe932c" />
+            <Text style={styles.heroAdzanText} numberOfLines={1}>
+              Muadzin: {selectedMuadzin?.name || 'Syaikh Ali Ahmed Mulla'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.heroTestAdzanBtn}
+            onPress={() => onTestAdzan && onTestAdzan(prayerStatus.nextPrayer || 'Dzuhur')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="play" size={13} color="#002721" />
+            <Text style={styles.heroTestAdzanBtnText}>Tes Suara Adzan</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1658,6 +1678,37 @@ const styles = StyleSheet.create({
   timelinePillTimeNext: {
     color: '#bbeddd',
     fontFamily: Fonts.bold,
+  },
+  heroAdzanBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroAdzanText: {
+    fontSize: 10.5,
+    fontFamily: Fonts.medium,
+    color: '#bbeddd',
+  },
+  heroTestAdzanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fe932c',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+  },
+  heroTestAdzanBtnText: {
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    color: '#002721',
   },
   sectionBlock: {
     marginTop: 20,

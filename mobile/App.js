@@ -30,8 +30,10 @@ import CalendarModal from './src/components/CalendarModal';
 import ZakatModal from './src/components/ZakatModal';
 import MasjidModal from './src/components/MasjidModal';
 import PremiumModal from './src/components/PremiumModal';
+import AdzanModal from './src/components/AdzanModal';
 import { mobileApiClient } from './src/services/apiClient';
 import { useKeyboardVisible } from './src/utils/useKeyboardVisible';
+import { playAudioUrl } from './src/utils/audioPlayerService';
 
 // Data
 import { INDONESIAN_CITIES } from './src/data/citiesPrayerData';
@@ -89,6 +91,19 @@ export default function App() {
           const parsed = JSON.parse(raw);
           if (parsed?.name) setCurrentCity(parsed);
         } catch (e) {}
+      }
+    });
+    AsyncStorage.getItem('noor_mobile_muadzin').then((raw) => {
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.audioUrl) setSelectedMuadzin(parsed);
+        } catch (e) {}
+      }
+    });
+    AsyncStorage.getItem('noor_mobile_adzan_reminder').then((raw) => {
+      if (raw !== null) {
+        setAdzanReminder(raw === 'true');
       }
     });
   }, []);
@@ -163,9 +178,90 @@ export default function App() {
     );
   };
 
-  // Selected Reciters
+  // Selected Reciters & Adzan States
   const [selectedQori, setSelectedQori] = useState(QORI_LIST[0]); // Mishary Alafasy
   const [selectedMuadzin, setSelectedMuadzin] = useState(MUADZIN_LIST[0]); // Ali Ahmed Mulla
+  const [adzanReminder, setAdzanReminder] = useState(true);
+  const [adzanModal, setAdzanModal] = useState({
+    visible: false,
+    prayerName: 'Dzuhur',
+    prayerTime: '11:40',
+    isTest: false,
+  });
+  const lastPlayedAdzanRef = React.useRef('');
+
+  const handleToggleAdzanReminder = (val) => {
+    setAdzanReminder(val);
+    AsyncStorage.setItem('noor_mobile_adzan_reminder', String(val)).catch(() => {});
+  };
+
+  const handleSelectMuadzin = (muadzin) => {
+    setSelectedMuadzin(muadzin);
+    AsyncStorage.setItem('noor_mobile_muadzin', JSON.stringify(muadzin)).catch(() => {});
+  };
+
+  const handleTestAdzan = (prayerName = 'Dzuhur') => {
+    const audioUrl = selectedMuadzin?.audioUrl || MUADZIN_LIST[0].audioUrl;
+    playAudioUrl(audioUrl);
+    setAdzanModal({
+      visible: true,
+      prayerName,
+      prayerTime: currentCity?.timings?.[prayerName.toLowerCase()] || '11:40',
+      isTest: true,
+    });
+  };
+
+  const handleTriggerAdzan = (prayerName, prayerKey, prayerTime) => {
+    let audioUrl = selectedMuadzin?.audioUrl || MUADZIN_LIST[0].audioUrl;
+    if (prayerKey === 'subuh') {
+      const fajr = MUADZIN_LIST.find((m) => m.id === 'fajr_makkah');
+      audioUrl = fajr?.audioUrl || audioUrl;
+    }
+    playAudioUrl(audioUrl);
+    setAdzanModal({
+      visible: true,
+      prayerName,
+      prayerTime,
+      isTest: false,
+    });
+  };
+
+  // Monitor Prayer Times Every 5 Seconds & Sound Adzan Exactly When It Arrives
+  useEffect(() => {
+    if (!adzanReminder || !currentCity?.timings) return;
+
+    const checkPrayerTimes = () => {
+      const now = new Date();
+      const currentH = String(now.getHours()).padStart(2, '0');
+      const currentM = String(now.getMinutes()).padStart(2, '0');
+      const currentHHMM = `${currentH}:${currentM}`;
+      const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+      const prayers = [
+        { key: 'subuh', label: 'Subuh' },
+        { key: 'dzuhur', label: now.getDay() === 5 ? "Jum'at" : "Dzuhur" },
+        { key: 'ashar', label: 'Ashar' },
+        { key: 'maghrib', label: 'Maghrib' },
+        { key: 'isya', label: 'Isya' },
+      ];
+
+      for (const p of prayers) {
+        const time = currentCity.timings[p.key];
+        if (time && time === currentHHMM) {
+          const adzanKey = `${todayKey}-${p.key}`;
+          if (lastPlayedAdzanRef.current !== adzanKey) {
+            lastPlayedAdzanRef.current = adzanKey;
+            handleTriggerAdzan(p.label, p.key, time);
+            break;
+          }
+        }
+      }
+    };
+
+    checkPrayerTimes();
+    const interval = setInterval(checkPrayerTimes, 5000);
+    return () => clearInterval(interval);
+  }, [adzanReminder, currentCity?.timings, selectedMuadzin]);
 
   const navItems = [
     { key: 'home', label: 'Beranda', icon: 'mosque', activeIcon: 'mosque' },
@@ -215,6 +311,8 @@ export default function App() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               userProfile={userProfile}
               onOpenSurah={() => setActiveTab('quran')}
+              selectedMuadzin={selectedMuadzin}
+              onTestAdzan={handleTestAdzan}
             />
           )}
 
@@ -299,7 +397,9 @@ export default function App() {
           selectedQori={selectedQori}
           onSelectQori={setSelectedQori}
           selectedMuadzin={selectedMuadzin}
-          onSelectMuadzin={setSelectedMuadzin}
+          onSelectMuadzin={handleSelectMuadzin}
+          adzanReminder={adzanReminder}
+          onToggleAdzanReminder={handleToggleAdzanReminder}
         />
 
         <AuthModal
@@ -354,6 +454,17 @@ export default function App() {
               token: prev.token,
             }));
           }}
+        />
+
+        {/* Adzan Alert & Sound Player Modal */}
+        <AdzanModal
+          visible={adzanModal.visible}
+          onClose={() => setAdzanModal((prev) => ({ ...prev, visible: false }))}
+          prayerName={adzanModal.prayerName}
+          prayerTime={adzanModal.prayerTime}
+          cityName={currentCity?.name || 'Jakarta'}
+          selectedMuadzin={selectedMuadzin}
+          isTest={adzanModal.isTest}
         />
       </SafeAreaView>
     </View>

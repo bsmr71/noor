@@ -34,6 +34,8 @@ export default function ProfileModal({
   onSelectQori,
   selectedMuadzin,
   onSelectMuadzin,
+  adzanReminder: adzanReminderProp = true,
+  onToggleAdzanReminder,
 }) {
   const [activeTab, setActiveTab] = useState('profil'); // 'profil', 'qori', 'muadzin', 'setelan'
   const [name, setName] = useState(userProfile?.name || 'Hamba Allah');
@@ -49,7 +51,12 @@ export default function ProfileModal({
   const [showLatin, setShowLatin] = useState(true);
   const [showTrans, setShowTrans] = useState(true);
   const [autoPlay, setAutoPlay] = useState(true);
-  const [adzanReminder, setAdzanReminder] = useState(true);
+  const [adzanReminder, setAdzanReminder] = useState(adzanReminderProp);
+
+  const handleToggleAdzan = (val) => {
+    setAdzanReminder(val);
+    if (onToggleAdzanReminder) onToggleAdzanReminder(val);
+  };
 
   const stopPreviewAudio = () => {
     stopCurrentAudio();
@@ -696,7 +703,7 @@ export default function ProfileModal({
                   </View>
                   <Switch
                     value={adzanReminder}
-                    onValueChange={setAdzanReminder}
+                    onValueChange={handleToggleAdzan}
                     trackColor={{ false: '#e2e8e5', true: Colors.primary }}
                     thumbColor="#ffffff"
                   />

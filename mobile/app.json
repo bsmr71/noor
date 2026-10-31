@@ -2,7 +2,7 @@
   "expo": {
     "name": "Noor - Muslim Pro",
     "slug": "noor-muslim-pro",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -24,7 +24,7 @@
     },
     "android": {
       "package": "com.noor.islamicapp",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#002721",
         "foregroundImage": "./assets/android-icon-foreground.png"

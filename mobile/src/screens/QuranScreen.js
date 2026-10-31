@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  Share,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
-import { ALL_SURAHS } from '../data/surahList';
-import { SAMPLE_SURAH_DETAILS } from '../data/sampleSurahData';
+import { ALL_SURAHS, getSurahAudioUrl, getAyahAudioUrl } from '../data/surahList';
+import { SAMPLE_SURAHS_DETAIL } from '../data/sampleSurahData';
 import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
 
 export default function QuranScreen({ selectedQori }) {
@@ -22,6 +24,7 @@ export default function QuranScreen({ selectedQori }) {
   const [surahDetail, setSurahDetail] = useState(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playingAyahNumber, setPlayingAyahNumber] = useState(null);
 
   // Filter surahs
   const filteredSurahs = useMemo(() => {
@@ -29,8 +32,10 @@ export default function QuranScreen({ selectedQori }) {
     const q = search.toLowerCase();
     return ALL_SURAHS.filter(
       (s) =>
-        s.latin.toLowerCase().includes(q) ||
-        s.arti.toLowerCase().includes(q) ||
+        s.latin?.toLowerCase().includes(q) ||
+        s.name?.toLowerCase().includes(q) ||
+        s.arti?.toLowerCase().includes(q) ||
+        s.translation?.toLowerCase().includes(q) ||
         String(s.number) === q
     );
   }, [search]);
@@ -39,26 +44,107 @@ export default function QuranScreen({ selectedQori }) {
   const handleOpenSurah = async (surah) => {
     setSelectedSurah(surah);
     setIsLoadingDetail(true);
+    setPlayingAyahNumber(null);
 
     // Stop any existing sound
     stopCurrentAudio();
     setIsPlayingAudio(false);
 
     try {
-      // Check offline sample first (like Al-Kahf, Al-Fatihah, etc.)
-      if (SAMPLE_SURAH_DETAILS[surah.number]) {
-        setSurahDetail(SAMPLE_SURAH_DETAILS[surah.number]);
+      // 1. Try public eQuran.id API v2 (Official, very fast & accurate)
+      const res = await fetch(`https://equran.id/api/v2/surat/${surah.number}`);
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data || json;
+        if (data && Array.isArray(data.ayat) && data.ayat.length > 0) {
+          setSurahDetail(data);
+          setIsLoadingDetail(false);
+          return;
+        }
+      }
+
+      // 2. Fallback to api.quran.gading.dev
+      const gadingRes = await fetch(`https://api.quran.gading.dev/surah/${surah.number}`);
+      if (gadingRes.ok) {
+        const gadingJson = await gadingRes.json();
+        const gData = gadingJson.data;
+        if (gData && Array.isArray(gData.verses)) {
+          setSurahDetail({
+            nomor: gData.number,
+            namaLatin: gData.name?.transliteration?.id || surah.latin,
+            nama: gData.name?.short || surah.arabic,
+            arti: gData.name?.translation?.id || surah.arti,
+            jumlahAyat: gData.numberOfVerses || surah.ayahCount,
+            tempatTurun: gData.revelation?.id || surah.type,
+            ayat: gData.verses.map((v) => ({
+              nomorAyat: v.number?.inSurah,
+              teksArab: v.text?.arab,
+              teksLatin: v.text?.transliteration?.en || '',
+              teksIndonesia: v.translation?.id || '',
+              audio: v.audio?.secondary?.[0] || v.audio?.primary || null,
+            })),
+          });
+          setIsLoadingDetail(false);
+          return;
+        }
+      }
+
+      // 3. Fallback to offline cached sample surahs
+      const offlineSample = SAMPLE_SURAHS_DETAIL[surah.number];
+      if (offlineSample && Array.isArray(offlineSample.verses)) {
+        setSurahDetail({
+          nomor: offlineSample.number,
+          namaLatin: offlineSample.name,
+          nama: offlineSample.arabicName,
+          arti: offlineSample.translation,
+          jumlahAyat: offlineSample.versesCount,
+          tempatTurun: offlineSample.revelation,
+          ayat: offlineSample.verses.map((v) => ({
+            nomorAyat: v.number,
+            teksArab: v.arabic,
+            teksLatin: v.latin,
+            teksIndonesia: v.translation,
+          })),
+        });
         setIsLoadingDetail(false);
         return;
       }
 
-      // Try fetching from public Quran API
-      const res = await fetch(`https://equran.nos.wjv-1.neo.id/api/v2/surat/${surah.number}`);
-      if (res.ok) {
-        const json = await res.json();
-        setSurahDetail(json.data || json);
+      // 4. Default single ayah fallback if completely unreachable
+      setSurahDetail({
+        nomor: surah.number,
+        namaLatin: surah.latin,
+        nama: surah.arabic,
+        arti: surah.arti,
+        jumlahAyat: surah.ayahCount,
+        tempatTurun: surah.type,
+        ayat: [
+          {
+            nomorAyat: 1,
+            teksArab: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+            teksLatin: 'Bismillaahir-rahmaanir-rahiim',
+            teksIndonesia: 'Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.',
+          },
+        ],
+      });
+    } catch (e) {
+      const offlineSample = SAMPLE_SURAHS_DETAIL[surah.number];
+      if (offlineSample && Array.isArray(offlineSample.verses)) {
+        setSurahDetail({
+          nomor: offlineSample.number,
+          namaLatin: offlineSample.name,
+          nama: offlineSample.arabicName,
+          arti: offlineSample.translation,
+          jumlahAyat: offlineSample.versesCount,
+          tempatTurun: offlineSample.revelation,
+          ayat: offlineSample.verses.map((v) => ({
+            nomorAyat: v.number,
+            teksArab: v.arabic,
+            teksLatin: v.latin,
+            teksIndonesia: v.translation,
+          })),
+        });
       } else {
-        // Fallback mockup ayahs
         setSurahDetail({
           nomor: surah.number,
           namaLatin: surah.latin,
@@ -76,47 +162,67 @@ export default function QuranScreen({ selectedQori }) {
           ],
         });
       }
-    } catch (e) {
-      setSurahDetail({
-        nomor: surah.number,
-        namaLatin: surah.latin,
-        nama: surah.arabic,
-        arti: surah.arti,
-        jumlahAyat: surah.ayahCount,
-        tempatTurun: surah.type,
-        ayat: [
-          {
-            nomorAyat: 1,
-            teksArab: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-            teksLatin: 'Bismillaahir-rahmaanir-rahiim',
-            teksIndonesia: 'Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.',
-          },
-        ],
-      });
     } finally {
       setIsLoadingDetail(false);
     }
   };
 
-  const handleToggleAudio = () => {
+  const handleToggleSurahAudio = () => {
     if (!selectedSurah) return;
 
     if (isPlayingAudio) {
       stopCurrentAudio();
       setIsPlayingAudio(false);
+      setPlayingAyahNumber(null);
       return;
     }
 
+    // Try eQuran CDN audio or qori audio
     const paddedNum = String(selectedSurah.number).padStart(3, '0');
-    const audioUrl = `${selectedQori?.surahServer || 'https://server8.mp3quran.net/afs/'}${paddedNum}.mp3`;
+    const audioUrl =
+      surahDetail?.audioFull?.['05'] ||
+      surahDetail?.audioFull?.['01'] ||
+      `${selectedQori?.surahServer || 'https://server8.mp3quran.net/afs/'}${paddedNum}.mp3`;
+
     playAudioUrl(audioUrl);
     setIsPlayingAudio(true);
+    setPlayingAyahNumber(null);
+  };
+
+  const handlePlayAyahAudio = (ayah) => {
+    if (!selectedSurah) return;
+
+    if (playingAyahNumber === ayah.nomorAyat) {
+      stopCurrentAudio();
+      setPlayingAyahNumber(null);
+      return;
+    }
+
+    stopCurrentAudio();
+    setIsPlayingAudio(false);
+
+    const ayahUrl =
+      ayah.audio?.['05'] ||
+      ayah.audio?.['01'] ||
+      (typeof ayah.audio === 'string' ? ayah.audio : null) ||
+      getAyahAudioUrl(selectedSurah.number, ayah.nomorAyat, selectedQori);
+
+    playAudioUrl(ayahUrl);
+    setPlayingAyahNumber(ayah.nomorAyat);
+  };
+
+  const handleShareAyah = (ayah) => {
+    if (!selectedSurah) return;
+    const shareText = `QS. ${selectedSurah.latin} [${selectedSurah.number}:${ayah.nomorAyat}]:\n\n${ayah.teksArab}\n\n"${ayah.teksIndonesia}"\n\nDibagikan melalui Aplikasi Noor (Muslim Pro).`;
+    Share.share({ message: shareText }).catch(() => {});
   };
 
   const handleCloseModal = () => {
     stopCurrentAudio();
     setIsPlayingAudio(false);
+    setPlayingAyahNumber(null);
     setSelectedSurah(null);
+    setSurahDetail(null);
   };
 
   return (
@@ -124,13 +230,13 @@ export default function QuranScreen({ selectedQori }) {
       {/* Header Search */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Al-Qur'an Al-Karim</Text>
-        <Text style={styles.headerSub}>114 Surah • Terjemahan & Audio Murottal</Text>
+        <Text style={styles.headerSub}>114 Surah • Terjemahan Kemenag RI & Audio Murottal</Text>
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color="#6f7975" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Cari Surah, arti, atau nomor..."
+            placeholder="Cari nama Surah, arti, atau nomor (1-114)..."
             placeholderTextColor="#9ca3af"
             value={search}
             onChangeText={setSearch}
@@ -190,16 +296,22 @@ export default function QuranScreen({ selectedQori }) {
             <TouchableOpacity onPress={handleCloseModal} style={styles.closeBtn}>
               <Ionicons name="arrow-back" size={24} color="#002721" />
             </TouchableOpacity>
-            <View style={{ alignItems: 'center', flex: 1 }}>
+
+            <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: 8 }}>
               <Text style={styles.readerSurahName}>{selectedSurah?.latin}</Text>
               <Text style={styles.readerSurahSub}>
-                {selectedSurah?.arti} • {selectedSurah?.ayahCount} Ayat
+                Surah ke-{selectedSurah?.number} • {selectedSurah?.arti} • {selectedSurah?.ayahCount} Ayat ({selectedSurah?.type})
               </Text>
             </View>
-            <TouchableOpacity onPress={handleToggleAudio} style={styles.audioPlayBtn}>
+
+            <TouchableOpacity
+              onPress={handleToggleSurahAudio}
+              style={[styles.audioPlayBtn, isPlayingAudio && styles.audioPlayBtnActive]}
+              activeOpacity={0.8}
+            >
               <MaterialCommunityIcons
                 name={isPlayingAudio ? 'pause' : 'play'}
-                size={22}
+                size={20}
                 color="#ffffff"
               />
             </TouchableOpacity>
@@ -209,42 +321,69 @@ export default function QuranScreen({ selectedQori }) {
           {isLoadingDetail ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.loadingText}>Memuat mushaf ayat...</Text>
+              <Text style={styles.loadingText}>Memuat mushaf ayat Al-Qur'an...</Text>
             </View>
           ) : (
-            <ScrollView style={styles.readerScroll} contentContainerStyle={styles.readerContent}>
-              {/* Bismillah Header */}
-              {selectedSurah?.number !== 9 && (
+            <ScrollView
+              style={styles.readerScroll}
+              contentContainerStyle={styles.readerContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Bismillah Header (kecuali Surah ke-9 At-Taubah, dan Surah ke-1 Al-Fatihah ayat 1 sudah bismillah) */}
+              {selectedSurah?.number !== 9 && selectedSurah?.number !== 1 && (
                 <View style={styles.bismillahBox}>
                   <Text style={styles.bismillahArabic}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</Text>
-                  <Text style={styles.bismillahLatin}>Dengan nama Allah Yang Maha Pengasih, Maha Penyayang</Text>
+                  <Text style={styles.bismillahLatin}>Bismillāhir-raḥmānir-raḥīm</Text>
+                  <Text style={styles.bismillahTrans}>Dengan nama Allah Yang Maha Pengasih, Maha Penyayang</Text>
                 </View>
               )}
 
               {/* Ayah Cards */}
-              {surahDetail?.ayat?.map((ayah) => (
-                <View key={ayah.nomorAyat} style={styles.ayahCard}>
-                  {/* Ayah Number Header */}
-                  <View style={styles.ayahHeader}>
-                    <View style={styles.ayahNumberBadge}>
-                      <Text style={styles.ayahNumberText}>{ayah.nomorAyat}</Text>
+              {surahDetail?.ayat?.map((ayah) => {
+                const isThisAyahPlaying = playingAyahNumber === ayah.nomorAyat;
+                return (
+                  <View key={ayah.nomorAyat} style={[styles.ayahCard, isThisAyahPlaying && styles.ayahCardPlaying]}>
+                    {/* Ayah Number Header */}
+                    <View style={styles.ayahHeader}>
+                      <View style={styles.ayahNumberBadge}>
+                        <Text style={styles.ayahNumberText}>{ayah.nomorAyat}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <TouchableOpacity
+                          onPress={() => handlePlayAyahAudio(ayah)}
+                          style={[styles.ayahActionBtn, isThisAyahPlaying && styles.ayahActionBtnActive]}
+                          activeOpacity={0.8}
+                        >
+                          <MaterialCommunityIcons
+                            name={isThisAyahPlaying ? 'stop-circle' : 'play-circle-outline'}
+                            size={20}
+                            color={isThisAyahPlaying ? '#dc2626' : Colors.primary}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleShareAyah(ayah)}
+                          style={styles.ayahActionBtn}
+                          activeOpacity={0.8}
+                        >
+                          <MaterialCommunityIcons name="share-variant-outline" size={18} color="#6f7975" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <MaterialCommunityIcons name="bookmark-outline" size={18} color="#6f7975" />
-                      <MaterialCommunityIcons name="share-variant-outline" size={18} color="#6f7975" />
-                    </View>
+
+                    {/* Arabic text */}
+                    <Text style={styles.ayahArabic}>{ayah.teksArab}</Text>
+
+                    {/* Latin Transliteration */}
+                    {!!ayah.teksLatin && (
+                      <Text style={styles.ayahLatin}>{ayah.teksLatin}</Text>
+                    )}
+
+                    {/* Indonesian Translation */}
+                    <Text style={styles.ayahTrans}>{ayah.teksIndonesia}</Text>
                   </View>
-
-                  {/* Arabic text */}
-                  <Text style={styles.ayahArabic}>{ayah.teksArab}</Text>
-
-                  {/* Latin Transliteration */}
-                  <Text style={styles.ayahLatin}>{ayah.teksLatin}</Text>
-
-                  {/* Indonesian Translation */}
-                  <Text style={styles.ayahTrans}>{ayah.teksIndonesia}</Text>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           )}
         </View>
@@ -375,8 +514,9 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
   },
   readerSurahSub: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: '#6f7975',
+    marginTop: 1,
   },
   audioPlayBtn: {
     width: 38,
@@ -385,6 +525,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fe932c',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  audioPlayBtnActive: {
+    backgroundColor: '#dc2626',
   },
   loadingBox: {
     flex: 1,
@@ -407,7 +550,7 @@ const styles = StyleSheet.create({
   bismillahBox: {
     backgroundColor: '#ffffff',
     borderRadius: 18,
-    padding: 20,
+    padding: 18,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e2e8e5',
@@ -417,12 +560,19 @@ const styles = StyleSheet.create({
     color: '#002721',
     fontWeight: 'bold',
     fontFamily: 'serif',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   bismillahLatin: {
     fontSize: 11,
+    color: '#059669',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  bismillahTrans: {
+    fontSize: 11,
     color: '#6f7975',
     textAlign: 'center',
+    marginTop: 2,
   },
   ayahCard: {
     backgroundColor: '#ffffff',
@@ -430,6 +580,10 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: '#e2e8e5',
+  },
+  ayahCardPlaying: {
+    borderColor: '#fe932c',
+    backgroundColor: '#fffbeb',
   },
   ayahHeader: {
     flexDirection: 'row',
@@ -450,24 +604,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#002721',
   },
+  ayahActionBtn: {
+    padding: 4,
+  },
+  ayahActionBtnActive: {},
   ayahArabic: {
-    fontSize: 22,
+    fontSize: 24,
     color: '#191c1b',
     textAlign: 'right',
-    lineHeight: 38,
+    lineHeight: 42,
     fontFamily: 'serif',
     marginBottom: 12,
   },
   ayahLatin: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#034138',
     fontWeight: '600',
+    fontStyle: 'italic',
     marginBottom: 6,
-  },
-  ayahTrans: {
-    fontSize: 12,
-    color: '#4b5563',
     lineHeight: 18,
   },
+  ayahTrans: {
+    fontSize: 12.5,
+    color: '#374151',
+    lineHeight: 19,
+  },
 });
-
