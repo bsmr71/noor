@@ -1,4 +1,4 @@
-s@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'Dashboard Overview & Analitik Ekosistem Ibadah')
 
