@@ -76,22 +76,45 @@ class PrayerNotificationModule(private val reactContext: ReactApplicationContext
     }
 
     @ReactMethod
-    fun showCountdown(title: String, message: String, isOngoing: Boolean) {
+    fun showCountdown(
+        title: String,
+        message: String,
+        isOngoing: Boolean,
+        targetTimestampMillis: Double,
+        progressPercent: Int
+    ) {
         try {
             val pendingIntent = getMainActivityPendingIntent()
             val smallIcon = R.mipmap.ic_launcher
+            val targetTimeLong = targetTimestampMillis.toLong()
 
             val builder = NotificationCompat.Builder(reactContext, CHANNEL_COUNTDOWN_ID)
                 .setSmallIcon(smallIcon)
                 .setContentTitle(title)
                 .setContentText(message)
+                .setSubText("Jadwal Sholat Digital")
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setOngoing(isOngoing)
                 .setOnlyAlertOnce(true)
-                .setShowWhen(false)
                 .setContentIntent(pendingIntent)
+
+            // Dynamic Prayer Progress Bar (0 - 100)
+            if (progressPercent in 0..100) {
+                builder.setProgress(100, progressPercent, false)
+            }
+
+            // Real-time ticking down Chronometer in Status Bar / Notification Center
+            if (targetTimeLong > System.currentTimeMillis()) {
+                builder.setWhen(targetTimeLong)
+                builder.setUsesChronometer(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    builder.setChronometerCountDown(true)
+                }
+            } else {
+                builder.setShowWhen(false)
+            }
 
             NotificationManagerCompat.from(reactContext).notify(NOTIFICATION_COUNTDOWN_ID, builder.build())
         } catch (e: Exception) {

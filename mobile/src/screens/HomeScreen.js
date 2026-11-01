@@ -11,6 +11,7 @@ import {
   Share,
   Alert,
   Linking,
+  Animated,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
@@ -104,6 +105,53 @@ export default function HomeScreen({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Ambient pulse & breathing glow animations for hero prayer countdown
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const pulseDotAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 1800,
+            useNativeDriver: false,
+          }),
+          Animated.timing(pulseDotAnim, {
+            toValue: 1.4,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 1800,
+            useNativeDriver: false,
+          }),
+          Animated.timing(pulseDotAnim, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+    pulseLoop.start();
+    return () => pulseLoop.stop();
+  }, []);
+
+  const animatedGlowBorder = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(254, 147, 44, 0.3)', 'rgba(254, 147, 44, 0.9)'],
+  });
+
+  const animatedGlowBg = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(0, 0, 0, 0.42)', 'rgba(254, 147, 44, 0.12)'],
+  });
 
   const isFriday = currentTime.getDay() === 5;
   const hijriDate = useMemo(() => getHijriDate(currentTime), [currentTime]);
@@ -568,7 +616,7 @@ export default function HomeScreen({
         {/* Top Badges Row */}
         <View style={styles.heroTopRow}>
           <View style={styles.heroStatusBadge}>
-            <View style={styles.pulseDot} />
+            <Animated.View style={[styles.pulseDot, { transform: [{ scale: pulseDotAnim }] }]} />
             <Text style={styles.heroStatusText}>MENUJU WAKTU SHOLAT</Text>
             <Text style={{ color: '#bbeddd', opacity: 0.5 }}>•</Text>
             <Text style={styles.heroNextHighlight}>
@@ -636,8 +684,16 @@ export default function HomeScreen({
             </Text>
           </View>
 
-          {/* High-Tech Digital Countdown Glass Dock (Matching Web / Reference Screenshot) */}
-          <View style={styles.countdownGlassCard}>
+          {/* High-Tech Digital Countdown Glass Dock with Animated Glow & Micro Progress */}
+          <Animated.View
+            style={[
+              styles.countdownGlassCard,
+              {
+                borderColor: animatedGlowBorder,
+                backgroundColor: animatedGlowBg,
+              },
+            ]}
+          >
             <View style={styles.countdownTopRow}>
               <MaterialCommunityIcons name="timer-sand" size={13} color="#fe932c" />
               <Text style={styles.countdownLabel}>HITUNG MUNDUR</Text>
@@ -647,13 +703,23 @@ export default function HomeScreen({
               {prayerStatus.hours || '00'} : {prayerStatus.mins || '00'} : {prayerStatus.secs || '00'}
             </Text>
 
+            {/* Micro Progress Bar toward Next Prayer */}
+            <View style={styles.countdownProgressTrack}>
+              <View
+                style={[
+                  styles.countdownProgressBar,
+                  { width: `${prayerStatus.progressPercent || 0}%` },
+                ]}
+              />
+            </View>
+
             <View style={styles.qiblaMicroRow}>
               <Ionicons name="compass-outline" size={11} color="#a2d0c4" />
               <Text style={styles.qiblaMicroText}>
                 {currentCity?.qiblaAngle || '295.2'}° ({currentCity?.fromWest || '25.2° U-B'})
               </Text>
             </View>
-          </View>
+          </Animated.View>
         </View>
 
         {/* 5 Horizontal Luxury Timeline Cards */}
@@ -1579,6 +1645,19 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 0.2,
     marginVertical: 2,
+  },
+  countdownProgressTrack: {
+    width: '100%',
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginVertical: 3,
+  },
+  countdownProgressBar: {
+    height: '100%',
+    backgroundColor: '#fe932c',
+    borderRadius: 2,
   },
   qiblaMicroRow: {
     flexDirection: 'row',

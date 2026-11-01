@@ -43,6 +43,8 @@ export function updatePrayerCountdownNotification(prayerStatus, cityName = 'Jaka
   try {
     const hours = Number(prayerStatus.hoursLeft) || 0;
     const mins = Number(prayerStatus.minsLeft) || 0;
+    const secs = Number(prayerStatus.secsLeft) || 0;
+    const totalSeconds = hours * 3600 + mins * 60 + secs;
     const totalMinutes = hours * 60 + mins;
 
     const nextPrayer = prayerStatus.nextPrayer || 'Sholat';
@@ -51,7 +53,7 @@ export function updatePrayerCountdownNotification(prayerStatus, cityName = 'Jaka
     let title = '';
     let message = '';
 
-    if (totalMinutes <= 0) {
+    if (totalSeconds <= 0) {
       const currentPrayer = prayerStatus.currentPrayer || nextPrayer;
       const curTime = prayerStatus.currentPrayerTime ? ` (${prayerStatus.currentPrayerTime} WIB)` : '';
       title = `Waktu Sholat ${currentPrayer} Telah Tiba!`;
@@ -64,7 +66,10 @@ export function updatePrayerCountdownNotification(prayerStatus, cityName = 'Jaka
       message = `± ${hours} jam ${mins} menit lagi menuju Adzan ${nextPrayer} • Wilayah ${cityName}`;
     }
 
-    PrayerNotification.showCountdown(title, message, true);
+    const targetTimestampMillis = Date.now() + (totalSeconds * 1000);
+    const progressPercent = Math.min(100, Math.max(0, Number(prayerStatus.progressPercent) || 0));
+
+    PrayerNotification.showCountdown(title, message, true, targetTimestampMillis, progressPercent);
   } catch (err) {
     console.warn('Gagal memperbarui notifikasi status bar:', err);
   }
