@@ -45,6 +45,8 @@ export default function ProfileModal({
   onToggleAdzanReminder,
   statusBarCountdown: statusBarCountdownProp = true,
   onToggleStatusBarCountdown,
+  isDarkMode = false,
+  onToggleDarkMode,
 }) {
   const [activeTab, setActiveTab] = useState('profil'); // 'profil', 'qori', 'muadzin', 'setelan'
   const [name, setName] = useState(userProfile?.name || 'Hamba Allah');
@@ -794,6 +796,21 @@ export default function ProfileModal({
                     value={autoPlay}
                     onValueChange={setAutoPlay}
                     trackColor={{ false: '#e2e8e5', true: Colors.primary }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                <Text style={[styles.tabHeading, { marginTop: 10 }]}>Tampilan & Tema Aplikasi</Text>
+
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Mode Gelap (Dark Mode)</Text>
+                    <Text style={styles.settingDesc}>Tampilan kontras malam yang nyaman dan sejuk di mata</Text>
+                  </View>
+                  <Switch
+                    value={isDarkMode}
+                    onValueChange={onToggleDarkMode}
+                    trackColor={{ false: '#e2e8e5', true: '#059669' }}
                     thumbColor="#ffffff"
                   />
                 </View>

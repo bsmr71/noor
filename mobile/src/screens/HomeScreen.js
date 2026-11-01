@@ -13,12 +13,18 @@ import {
   Linking,
   Animated,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { Fonts } from '../theme/fonts';
 import { getHijriDate, getIndonesianDayDate, getCurrentPrayerStatus } from '../utils/prayerCalculator';
-import { playAudioUrl } from '../utils/audioPlayerService';
+import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
 import { mobileApiClient, ADMIN_CONSOLE_URL } from '../services/apiClient';
+import {
+  getVerseForCurrentTime,
+  getRandomVerse,
+  getHabitSessionInfo,
+} from '../data/dailyWorshipData';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
@@ -40,6 +46,8 @@ export default function HomeScreen({
   onOpenSurah,
   selectedMuadzin,
   onTestAdzan,
+  isDarkMode = false,
+  onToggleDarkMode,
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [apiPrompt, setApiPrompt] = useState(null);
@@ -167,20 +175,51 @@ export default function HomeScreen({
   const [isEthicsModalVisible, setIsEthicsModalVisible] = useState(false);
   const [isPlayingMurottal, setIsPlayingMurottal] = useState(false);
 
-  // Daily Habits Checklist state
-  const [habits, setHabits] = useState([
-    { id: 1, title: 'Sholat Subuh', sub: 'Tepat Waktu', completed: true },
-    { id: 2, title: isFriday ? "Sholat Jum'at" : 'Sholat Dzuhur', sub: 'Menanti', completed: false },
-    { id: 3, title: 'Dzikir Pagi', sub: 'Selesai Dibaca', completed: true },
-    { id: 4, title: 'Tilawah 1 Juz', sub: 'Juz 14 Halaman 7', completed: true },
-  ]);
+  // Time-Adaptive Habit Session Tracker (Menyesuaikan dengan waktu sholat & jam saat ini)
+  const habitSession = useMemo(() => getHabitSessionInfo(isFriday), [isFriday]);
+  const [completedHabitIds, setCompletedHabitIds] = useState([]);
+  const todayDateString = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  const completedHabitsCount = habits.filter((h) => h.completed).length;
+  useEffect(() => {
+    const storageKey = `@noor_habits_${todayDateString}_${habitSession.sessionKey}`;
+    AsyncStorage.getItem(storageKey).then((saved) => {
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setCompletedHabitIds(parsed);
+            return;
+          }
+        } catch (e) {}
+      }
+      // Nilai awal: item pertama default selesai sebagai motivasi
+      if (habitSession.habits?.[0]?.id) {
+        setCompletedHabitIds([habitSession.habits[0].id]);
+      }
+    });
+  }, [todayDateString, habitSession.sessionKey]);
 
   const toggleHabit = (id) => {
-    setHabits((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, completed: !h.completed } : h))
-    );
+    setCompletedHabitIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const storageKey = `@noor_habits_${todayDateString}_${habitSession.sessionKey}`;
+      AsyncStorage.setItem(storageKey, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const completedHabitsCount = completedHabitIds.length;
+
+  // Ayat Pilihan Hari Ini (Time-Adaptive & Randomizable)
+  const [dailyVerse, setDailyVerse] = useState(() => getVerseForCurrentTime());
+
+  const handleRandomizeDailyVerse = () => {
+    const nextVerse = getRandomVerse(dailyVerse?.id);
+    setDailyVerse(nextVerse);
+    if (isPlayingMurottal) {
+      stopCurrentAudio();
+      setIsPlayingMurottal(false);
+    }
   };
 
   const prayerItems = [
@@ -337,14 +376,19 @@ export default function HomeScreen({
   const handleShareDailyVerse = async () => {
     try {
       await Share.share({
-        message:
-          'QS. Al-Baqarah: 152\n"Maka ingatlah kepada-Ku, niscaya Aku akan ingat kepadamu. Bersyukurlah kepada-Ku, dan janganlah kamu mengingkari (nikmat)-Ku."',
+        message: `${dailyVerse?.surahName || 'Al-Qur\'an'}\n"${dailyVerse?.translation || ''}"\n\n- Dibagikan via Aplikasi Noor`,
       });
     } catch (e) { }
   };
 
   const handlePlayDailyVerseAudio = () => {
-    playAudioUrl('https://server8.mp3quran.net/afs/002152.mp3');
+    if (isPlayingMurottal) {
+      stopCurrentAudio();
+      setIsPlayingMurottal(false);
+      return;
+    }
+    const targetUrl = dailyVerse?.audioUrl || 'https://server8.mp3quran.net/afs/002152.mp3';
+    playAudioUrl(targetUrl);
     setIsPlayingMurottal(true);
   };
 
@@ -359,9 +403,13 @@ export default function HomeScreen({
   const userName = userProfile?.isLoggedIn ? userProfile.name.split(' ')[0] : (userProfile?.name || 'Hamba Allah');
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, isDarkMode && { backgroundColor: '#070c12' }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.content}
+    >
       {/* 1. Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
         <View style={styles.headerBrand}>
           <Image
             source={{
@@ -371,15 +419,27 @@ export default function HomeScreen({
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.brandTitle}>Noor</Text>
-            <Text style={styles.brandSubtitle}>Beranda</Text>
+            <Text style={[styles.brandTitle, isDarkMode && { color: '#34d399' }]}>Noor</Text>
+            <Text style={[styles.brandSubtitle, isDarkMode && { color: '#94a3b8' }]}>Beranda</Text>
           </View>
         </View>
 
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.cityPill} onPress={onOpenCityModal} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[styles.themeToggleBtn, isDarkMode && styles.themeToggleBtnDark]}
+            onPress={onToggleDarkMode}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isDarkMode ? 'sunny' : 'moon'}
+              size={15}
+              color={isDarkMode ? '#fbbf24' : '#0f3e36'}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.cityPill, isDarkMode && styles.cityPillDark]} onPress={onOpenCityModal} activeOpacity={0.8}>
             <Ionicons name="navigate-circle-outline" size={15} color={Colors.secondary} />
-            <Text style={styles.cityName} numberOfLines={1}>
+            <Text style={[styles.cityName, isDarkMode && styles.textWhite]} numberOfLines={1}>
               {currentCity?.name || 'Jakarta'}
             </Text>
           </TouchableOpacity>
@@ -477,7 +537,7 @@ export default function HomeScreen({
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Text style={styles.greetingText}>
+            <Text style={[styles.greetingText, isDarkMode && { color: '#f8fafc' }]}>
               Assalamu'alaikum, <Text style={{ color: Colors.secondary }}>{userName}</Text>
             </Text>
             {userProfile?.role === 'admin' ? (
@@ -504,7 +564,7 @@ export default function HomeScreen({
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.spiritualPrompt}>
+          <Text style={[styles.spiritualPrompt, isDarkMode && { color: '#94a3b8' }]}>
             {apiPrompt ||
               (isFriday
                 ? '✨ Perbanyak sholawat & tilawah Surah Al-Kahf di hari mulia ini.'
@@ -514,7 +574,7 @@ export default function HomeScreen({
 
         <View style={styles.topIconGroup}>
           <TouchableOpacity
-            style={styles.topCircleBtn}
+            style={[styles.topCircleBtn, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
             activeOpacity={0.8}
             onPress={() => onTestAdzan ? onTestAdzan(prayerStatus.nextPrayer || 'Dzuhur') : Alert.alert('Notifikasi Adzan', 'Pengingat adzan aktif untuk 5 waktu sholat.')}
           >
@@ -976,22 +1036,22 @@ export default function HomeScreen({
       {/* 5. Quick Action Menu Grid (8 Essential Features in 4 cols x 2 rows) */}
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeaderTitle}>Fitur Utama Ibadah</Text>
-          <Text style={styles.sectionHeaderSub}>Lengkap & Praktis</Text>
+          <Text style={[styles.sectionHeaderTitle, isDarkMode && { color: '#f8fafc' }]}>Fitur Utama Ibadah</Text>
+          <Text style={[styles.sectionHeaderSub, isDarkMode && { color: '#94a3b8' }]}>Lengkap & Praktis</Text>
         </View>
 
         <View style={styles.quickGrid}>
           {quickActions.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.quickCard}
+              style={[styles.quickCard, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
               activeOpacity={0.8}
               onPress={item.action}
             >
-              <View style={[styles.quickIconBox, { backgroundColor: item.bgColor }]}>
+              <View style={[styles.quickIconBox, { backgroundColor: isDarkMode ? '#1e293b' : item.bgColor }]}>
                 <MaterialCommunityIcons name={item.icon} size={22} color={item.iconColor} />
               </View>
-              <Text style={styles.quickLabel} numberOfLines={1}>
+              <Text style={[styles.quickLabel, isDarkMode && { color: '#f8fafc' }]} numberOfLines={1}>
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -999,50 +1059,79 @@ export default function HomeScreen({
         </View>
       </View>
 
-      {/* 6. Ayat Hari Ini / Inspirasi Qur'ani */}
-      <View style={styles.dailyVerseCard}>
+      {/* 6. Ayat Hari Ini / Inspirasi Qur'ani (Time-Adaptive & Acak) */}
+      <View style={[styles.dailyVerseCard, isDarkMode && styles.dailyVerseCardDark]}>
         <View style={styles.dailyVerseHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={styles.verseIconCircle}>
               <MaterialCommunityIcons name="book-open-page-variant" size={16} color="#ffffff" />
             </View>
             <View>
-              <Text style={styles.verseBadgeLabel}>AYAT PILIHAN HARI INI</Text>
-              <Text style={styles.verseSurahTitle}>QS. Al-Baqarah: 152</Text>
+              <Text style={styles.verseBadgeLabel}>
+                AYAT PILIHAN • {dailyVerse?.theme ? dailyVerse.theme.toUpperCase() : 'HARI INI'}
+              </Text>
+              <Text style={[styles.verseSurahTitle, isDarkMode && styles.textWhite]}>
+                {dailyVerse?.surahName || 'QS. Al-Baqarah: 152'}
+              </Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.verseShareBtn} onPress={handleShareDailyVerse} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="share-variant-outline" size={18} color="#404846" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Tombol Acak / Ganti Ayat */}
+            <TouchableOpacity
+              style={[styles.verseActionHeaderBtn, isDarkMode && styles.verseActionHeaderBtnDark]}
+              onPress={handleRandomizeDailyVerse}
+              activeOpacity={0.7}
+              accessibilityLabel="Ganti Ayat Pilihan"
+            >
+              <MaterialCommunityIcons name="dice-multiple-outline" size={17} color={isDarkMode ? '#34d399' : '#047857'} />
+            </TouchableOpacity>
+
+            {/* Tombol Bagikan Ayat */}
+            <TouchableOpacity
+              style={[styles.verseActionHeaderBtn, isDarkMode && styles.verseActionHeaderBtnDark]}
+              onPress={handleShareDailyVerse}
+              activeOpacity={0.7}
+              accessibilityLabel="Bagikan Ayat"
+            >
+              <MaterialCommunityIcons name="share-variant-outline" size={17} color={isDarkMode ? '#94a3b8' : '#404846'} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Arabic Calligraphy */}
-        <View style={styles.verseArabicBox}>
-          <Text style={styles.verseArabicText}>
-            فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ
+        <View style={[styles.verseArabicBox, isDarkMode && styles.verseArabicBoxDark]}>
+          <Text style={[styles.verseArabicText, isDarkMode && styles.textWhite]}>
+            {dailyVerse?.arabic || 'فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ'}
           </Text>
         </View>
 
+        {/* Latin Transliteration */}
+        {!!dailyVerse?.latin && (
+          <Text style={[styles.verseLatinText, isDarkMode && styles.verseLatinTextDark]}>
+            {dailyVerse.latin}
+          </Text>
+        )}
+
         {/* Indonesian Translation */}
-        <Text style={styles.verseTranslationText}>
-          "Maka ingatlah kepada-Ku, niscaya Aku akan ingat kepadamu. Bersyukurlah kepada-Ku, dan janganlah kamu mengingkari (nikmat)-Ku."
+        <Text style={[styles.verseTranslationText, isDarkMode && styles.verseTranslationTextDark]}>
+          "{dailyVerse?.translation || 'Maka ingatlah kepada-Ku, niscaya Aku akan ingat kepadamu.'}"
         </Text>
 
         {/* Verse Action Buttons */}
         <View style={styles.verseFooter}>
           <TouchableOpacity
-            style={styles.verseAudioBtn}
+            style={[styles.verseAudioBtn, isDarkMode && styles.verseAudioBtnDark]}
             onPress={handlePlayDailyVerseAudio}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
-              name={isPlayingMurottal ? 'volume-high' : 'volume-medium'}
+              name={isPlayingMurottal ? 'stop-circle' : 'volume-high'}
               size={16}
-              color={Colors.primary}
+              color={isPlayingMurottal ? '#ef4444' : (isDarkMode ? '#34d399' : Colors.primary)}
             />
-            <Text style={styles.verseAudioBtnText}>
-              {isPlayingMurottal ? 'Sedang Memutar' : 'Dengarkan Murottal'}
+            <Text style={[styles.verseAudioBtnText, isDarkMode && styles.verseAudioBtnTextDark]}>
+              {isPlayingMurottal ? 'Hentikan Audio' : 'Dengarkan Murottal'}
             </Text>
           </TouchableOpacity>
 
@@ -1051,78 +1140,75 @@ export default function HomeScreen({
             onPress={() => onNavigateTab('quran')}
             activeOpacity={0.8}
           >
-            <Text style={styles.verseTafsirText}>Buka Tafsir Lengkap</Text>
+            <Text style={styles.verseTafsirText}>Buka Al-Qur'an</Text>
             <Ionicons name="chevron-forward" size={14} color={Colors.secondary} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 7. Daily Checklist Ibadah Tracker */}
+      {/* 7. Daily Checklist Ibadah Tracker (Time-Adaptive Sesuai Waktu) */}
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeaderRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <MaterialCommunityIcons name="check-circle" size={18} color={Colors.secondary} />
-            <Text style={styles.sectionHeaderTitle}>Target Ibadah Hari Ini</Text>
+            <Text style={[styles.sectionHeaderTitle, isDarkMode && styles.textWhite]}>Target Ibadah Hari Ini</Text>
+            <View style={[styles.sessionBadge, isDarkMode && styles.sessionBadgeDark]}>
+              <Text style={styles.sessionBadgeText}>{habitSession.sessionBadge}</Text>
+            </View>
           </View>
-          <Text style={styles.habitScoreText}>
-            {completedHabitsCount} dari {habits.length} Selesai
+          <Text style={[styles.habitScoreText, isDarkMode && styles.textSecondaryLight]}>
+            {completedHabitsCount} dari {habitSession.habits.length} Selesai
           </Text>
         </View>
 
         {/* Habit Progress Bar */}
-        <View style={styles.habitBarBackground}>
+        <View style={[styles.habitBarBackground, isDarkMode && styles.habitBarBackgroundDark]}>
           <View
             style={[
               styles.habitBarFill,
-              { width: `${Math.round((completedHabitsCount / habits.length) * 100)}%` },
+              { width: `${Math.round((completedHabitsCount / habitSession.habits.length) * 100)}%` },
             ]}
           />
         </View>
 
         {/* Checklist 2x2 Cards Grid */}
         <View style={styles.habitGrid}>
-          {habits.map((item) => (
-            <View key={item.id} style={styles.habitCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.habitCardTitle}>{item.title}</Text>
-                <Text
-                  style={[
-                    styles.habitCardSub,
-                    item.id === 4 && { color: Colors.secondary, fontWeight: 'bold' },
-                  ]}
-                >
-                  {item.sub}
-                </Text>
-              </View>
+          {habitSession.habits.map((item) => {
+            const isCompleted = completedHabitIds.includes(item.id);
+            return (
+              <View key={item.id} style={[styles.habitCard, isDarkMode && styles.habitCardDark]}>
+                <View style={{ flex: 1, paddingRight: 6 }}>
+                  <Text style={[styles.habitCardTitle, isDarkMode && styles.textWhite]}>{item.title}</Text>
+                  <Text
+                    style={[
+                      styles.habitCardSub,
+                      isDarkMode && styles.textMuted,
+                      isCompleted && { color: '#059669', fontWeight: '600' },
+                    ]}
+                  >
+                    {isCompleted ? '✓ Selesai Dilakukan' : item.sub}
+                  </Text>
+                </View>
 
-              <TouchableOpacity
-                style={[
-                  styles.habitCheckBtn,
-                  item.completed ? styles.habitCheckBtnDone : styles.habitCheckBtnPending,
-                ]}
-                onPress={() => (item.id === 4 ? onNavigateTab('quran') : toggleHabit(item.id))}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons
-                  name={
-                    item.id === 4
-                      ? 'book-open-outline'
-                      : item.completed
-                        ? 'check'
-                        : 'check'
-                  }
-                  size={16}
-                  color={
-                    item.id === 4
-                      ? Colors.secondary
-                      : item.completed
-                        ? '#ffffff'
-                        : '#717976'
-                  }
-                />
-              </TouchableOpacity>
-            </View>
-          ))}
+                <TouchableOpacity
+                  style={[
+                    styles.habitCheckBtn,
+                    isCompleted
+                      ? styles.habitCheckBtnDone
+                      : (isDarkMode ? styles.habitCheckBtnPendingDark : styles.habitCheckBtnPending),
+                  ]}
+                  onPress={() => toggleHabit(item.id)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={16}
+                    color={isCompleted ? '#ffffff' : (isDarkMode ? '#64748b' : '#9ca3af')}
+                  />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -2194,6 +2280,97 @@ const styles = StyleSheet.create({
   },
   habitCheckBtnPending: {
     backgroundColor: '#eceeed',
+  },
+  habitCheckBtnPendingDark: {
+    backgroundColor: '#1e293b',
+  },
+  themeToggleBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  themeToggleBtnDark: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+  },
+  cityPillDark: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+  },
+  verseActionHeaderBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#eceeed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verseActionHeaderBtnDark: {
+    backgroundColor: '#1e293b',
+  },
+  verseLatinText: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    fontStyle: 'italic',
+    color: '#0f3e36',
+    lineHeight: 18,
+  },
+  verseLatinTextDark: {
+    color: '#34d399',
+  },
+  dailyVerseCardDark: {
+    backgroundColor: '#131e2c',
+    borderWidth: 1,
+    borderColor: '#223447',
+  },
+  verseArabicBoxDark: {
+    borderBottomColor: '#223447',
+  },
+  verseTranslationTextDark: {
+    color: '#cbd5e1',
+  },
+  verseAudioBtnDark: {
+    backgroundColor: 'transparent',
+  },
+  verseAudioBtnTextDark: {
+    color: '#34d399',
+  },
+  sessionBadge: {
+    backgroundColor: '#e6f4f1',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 4,
+  },
+  sessionBadgeDark: {
+    backgroundColor: '#064e3b',
+  },
+  sessionBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#0f3e36',
+  },
+  habitCardDark: {
+    backgroundColor: '#131e2c',
+    borderColor: '#223447',
+  },
+  habitBarBackgroundDark: {
+    backgroundColor: '#1e293b',
+  },
+  textWhite: {
+    color: '#f8fafc',
+  },
+  textMuted: {
+    color: '#94a3b8',
+  },
+  textSecondaryLight: {
+    color: '#fbbf24',
   },
   modalBackdrop: {
     flex: 1,

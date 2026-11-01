@@ -11,7 +11,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from './src/theme/colors';
+import { Colors, getThemeColors } from './src/theme/colors';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -62,6 +62,13 @@ export default function App() {
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' | 'register'
   const [donationInitial, setDonationInitial] = useState({ campaign: null, amount: null, tab: 'donate' });
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const handleToggleDarkMode = async () => {
+    const nextMode = !isDarkMode;
+    setIsDarkMode(nextMode);
+    await AsyncStorage.setItem('noor_mobile_dark_mode', nextMode ? 'true' : 'false').catch(() => {});
+  };
 
   const handleOpenAuth = (mode = 'login') => {
     setAuthModalMode(mode);
@@ -117,6 +124,11 @@ export default function App() {
     AsyncStorage.getItem('noor_mobile_statusbar_countdown').then((raw) => {
       if (raw !== null) {
         setStatusBarCountdownEnabled(raw === 'true');
+      }
+    });
+    AsyncStorage.getItem('noor_mobile_dark_mode').then((raw) => {
+      if (raw !== null) {
+        setIsDarkMode(raw === 'true');
       }
     });
 
@@ -331,10 +343,12 @@ export default function App() {
     );
   }
 
+  const theme = getThemeColors(isDarkMode);
+
   return (
-    <View style={styles.root}>
-      <StatusBar style="dark" />
-      <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.root, { backgroundColor: theme.surfaceDim }]}>
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.surfaceDim }]}>
         {/* Main Active Screen */}
         <View style={styles.screenContainer}>
           {activeTab === 'home' && (
@@ -358,17 +372,20 @@ export default function App() {
               onOpenSurah={() => setActiveTab('quran')}
               selectedMuadzin={selectedMuadzin}
               onTestAdzan={handleTestAdzan}
+              isDarkMode={isDarkMode}
+              onToggleDarkMode={handleToggleDarkMode}
             />
           )}
 
           {activeTab === 'quran' && (
-            <QuranScreen selectedQori={selectedQori} />
+            <QuranScreen selectedQori={selectedQori} isDarkMode={isDarkMode} />
           )}
 
           {activeTab === 'katalog' && (
             <CatalogScreen
               userProfile={userProfile}
               initialCategory={catalogCategory}
+              isDarkMode={isDarkMode}
             />
           )}
 
@@ -377,19 +394,22 @@ export default function App() {
               currentCity={currentCity}
               onOpenCityModal={() => setIsCityModalVisible(true)}
               onOpenCalendarModal={() => setIsCalendarModalVisible(true)}
+              isDarkMode={isDarkMode}
             />
           )}
 
           {activeTab === 'dzikir' && (
-            <DhikrScreen />
+            <DhikrScreen isDarkMode={isDarkMode} />
           )}
         </View>
 
         {/* Bottom Native Tab Bar (hidden when soft keyboard is open) */}
         {!isKeyboardVisible && (
-          <View style={styles.bottomNav}>
+          <View style={[styles.bottomNav, { backgroundColor: theme.navBg, borderTopColor: theme.navBorder }]}>
             {navItems.map((item) => {
               const isActive = activeTab === item.key;
+              const activeColor = isDarkMode ? '#34d399' : Colors.primary;
+              const inactiveColor = isDarkMode ? '#64748b' : '#9ca3af';
               return (
                 <TouchableOpacity
                   key={item.key}
@@ -400,12 +420,18 @@ export default function App() {
                   <MaterialCommunityIcons
                     name={isActive ? item.activeIcon : item.icon}
                     size={22}
-                    color={isActive ? Colors.primary : '#9ca3af'}
+                    color={isActive ? activeColor : inactiveColor}
                   />
-                  <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
+                  <Text
+                    style={[
+                      styles.navLabel,
+                      { color: inactiveColor },
+                      isActive && { color: activeColor, fontWeight: 'bold' },
+                    ]}
+                  >
                     {item.label}
                   </Text>
-                  {isActive && <View style={styles.activeDot} />}
+                  {isActive && <View style={[styles.activeDot, { backgroundColor: Colors.secondary }]} />}
                 </TouchableOpacity>
               );
             })}
@@ -447,6 +473,8 @@ export default function App() {
           onToggleAdzanReminder={handleToggleAdzanReminder}
           statusBarCountdown={statusBarCountdownEnabled}
           onToggleStatusBarCountdown={handleToggleStatusBarCountdown}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
         />
 
         <AuthModal
@@ -535,11 +563,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#f1f5f3',
-    paddingVertical: 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'android' ? 26 : 14,
     paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 8,
   },

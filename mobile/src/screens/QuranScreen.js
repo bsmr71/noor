@@ -30,7 +30,7 @@ import {
   downloadAyahAudio,
 } from '../services/offlineStorageService';
 
-export default function QuranScreen({ selectedQori }) {
+export default function QuranScreen({ selectedQori, isDarkMode = false }) {
   const [search, setSearch] = useState('');
   const [selectedSurah, setSelectedSurah] = useState(null);
   const [surahDetail, setSurahDetail] = useState(null);
@@ -342,24 +342,24 @@ export default function QuranScreen({ selectedQori }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: '#070c12' }]}>
       {/* Header Search */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Al-Qur'an Al-Karim</Text>
-        <Text style={styles.headerSub}>114 Surah • Terjemahan Kemenag RI & Audio Murottal</Text>
+      <View style={[styles.header, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
+        <Text style={[styles.headerTitle, isDarkMode && { color: '#f8fafc' }]}>Al-Qur'an Al-Karim</Text>
+        <Text style={[styles.headerSub, isDarkMode && { color: '#94a3b8' }]}>114 Surah • Terjemahan Kemenag RI & Audio Murottal</Text>
 
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#6f7975" style={{ marginRight: 8 }} />
+        <View style={[styles.searchBar, isDarkMode && { backgroundColor: '#152232', borderColor: '#223447' }]}>
+          <Ionicons name="search" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, isDarkMode && { color: '#f8fafc' }]}
             placeholder="Cari nama Surah, arti, atau nomor (1-114)..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={isDarkMode ? '#64748b' : '#9ca3af'}
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color="#6f7975" />
+              <Ionicons name="close-circle" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} />
             </TouchableOpacity>
           )}
         </View>
@@ -374,48 +374,48 @@ export default function QuranScreen({ selectedQori }) {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.surahItem}
+            style={[styles.surahItem, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
             activeOpacity={0.8}
             onPress={() => handleOpenSurah(item)}
           >
             {/* Number badge */}
-            <View style={styles.numBadge}>
-              <Text style={styles.numText}>{item.number}</Text>
+            <View style={[styles.numBadge, isDarkMode && { backgroundColor: '#1e293b' }]}>
+              <Text style={[styles.numText, isDarkMode && { color: '#34d399' }]}>{item.number}</Text>
             </View>
 
             {/* Title & Info */}
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.latinName}>{item.latin}</Text>
+                <Text style={[styles.latinName, isDarkMode && { color: '#f8fafc' }]}>{item.latin}</Text>
                 <View style={[styles.typeBadge, item.type === 'Madaniyah' && styles.typeBadgeMadaniyah]}>
                   <Text style={[styles.typeText, item.type === 'Madaniyah' && styles.typeTextMadaniyah]}>
                     {item.type}
                   </Text>
                 </View>
               </View>
-              <Text style={styles.meaningText}>
+              <Text style={[styles.meaningText, isDarkMode && { color: '#94a3b8' }]}>
                 {item.arti} • {item.ayahCount} Ayat
               </Text>
             </View>
 
             {/* Arabic calligraphy */}
-            <Text style={styles.arabicName}>{item.arabic}</Text>
+            <Text style={[styles.arabicName, isDarkMode && { color: '#34d399' }]}>{item.arabic}</Text>
           </TouchableOpacity>
         )}
       />
 
       {/* Surah Reader Modal */}
       <Modal visible={!!selectedSurah} animationType="slide" onRequestClose={handleCloseModal}>
-        <View style={styles.readerModalContainer}>
+        <View style={[styles.readerModalContainer, isDarkMode && { backgroundColor: '#070c12' }]}>
           {/* Modal Top Bar */}
-          <View style={styles.readerTopBar}>
+          <View style={[styles.readerTopBar, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
             <TouchableOpacity onPress={handleCloseModal} style={styles.closeBtn}>
-              <Ionicons name="arrow-back" size={24} color="#002721" />
+              <Ionicons name="arrow-back" size={24} color={isDarkMode ? '#34d399' : '#002721'} />
             </TouchableOpacity>
 
             <View style={{ alignItems: 'center', flex: 1, paddingHorizontal: 8 }}>
-              <Text style={styles.readerSurahName}>{selectedSurah?.latin}</Text>
-              <Text style={styles.readerSurahSub}>
+              <Text style={[styles.readerSurahName, isDarkMode && { color: '#f8fafc' }]}>{selectedSurah?.latin}</Text>
+              <Text style={[styles.readerSurahSub, isDarkMode && { color: '#94a3b8' }]}>
                 Surah ke-{selectedSurah?.number} • {selectedSurah?.arti} • {selectedSurah?.ayahCount} Ayat ({selectedSurah?.type})
               </Text>
             </View>
@@ -434,7 +434,7 @@ export default function QuranScreen({ selectedQori }) {
           </View>
 
           {/* Offline Actions Bar */}
-          <View style={styles.offlineControlBar}>
+          <View style={[styles.offlineControlBar, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
             <View style={styles.offlineTextPill}>
               <Ionicons name="checkmark-circle" size={13} color="#059669" />
               <Text style={styles.offlineTextLabel}>Teks Tersimpan Offline</Text>
@@ -502,11 +502,18 @@ export default function QuranScreen({ selectedQori }) {
               {surahDetail?.ayat?.map((ayah) => {
                 const isThisAyahPlaying = playingAyahNumber === ayah.nomorAyat;
                 return (
-                  <View key={ayah.nomorAyat} style={[styles.ayahCard, isThisAyahPlaying && styles.ayahCardPlaying]}>
+                  <View
+                    key={ayah.nomorAyat}
+                    style={[
+                      styles.ayahCard,
+                      isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' },
+                      isThisAyahPlaying && styles.ayahCardPlaying,
+                    ]}
+                  >
                     {/* Ayah Number Header */}
                     <View style={styles.ayahHeader}>
-                      <View style={styles.ayahNumberBadge}>
-                        <Text style={styles.ayahNumberText}>{ayah.nomorAyat}</Text>
+                      <View style={[styles.ayahNumberBadge, isDarkMode && { backgroundColor: '#1e293b' }]}>
+                        <Text style={[styles.ayahNumberText, isDarkMode && { color: '#34d399' }]}>{ayah.nomorAyat}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         {/* Download / Offline Ayah Audio Button */}
@@ -522,7 +529,7 @@ export default function QuranScreen({ selectedQori }) {
                             <Ionicons
                               name={downloadedAyat[ayah.nomorAyat] ? 'checkmark-circle' : 'cloud-download-outline'}
                               size={18}
-                              color={downloadedAyat[ayah.nomorAyat] ? '#059669' : '#9ca3af'}
+                              color={downloadedAyat[ayah.nomorAyat] ? '#059669' : (isDarkMode ? '#64748b' : '#9ca3af')}
                             />
                           )}
                         </TouchableOpacity>
@@ -535,7 +542,7 @@ export default function QuranScreen({ selectedQori }) {
                           <MaterialCommunityIcons
                             name={isThisAyahPlaying ? 'stop-circle' : 'play-circle-outline'}
                             size={20}
-                            color={isThisAyahPlaying ? '#dc2626' : Colors.primary}
+                            color={isThisAyahPlaying ? '#dc2626' : (isDarkMode ? '#34d399' : Colors.primary)}
                           />
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -543,21 +550,21 @@ export default function QuranScreen({ selectedQori }) {
                           style={styles.ayahActionBtn}
                           activeOpacity={0.8}
                         >
-                          <MaterialCommunityIcons name="share-variant-outline" size={18} color="#6f7975" />
+                          <MaterialCommunityIcons name="share-variant-outline" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} />
                         </TouchableOpacity>
                       </View>
                     </View>
 
                     {/* Arabic text */}
-                    <Text style={styles.ayahArabic}>{ayah.teksArab}</Text>
+                    <Text style={[styles.ayahArabic, isDarkMode && { color: '#f8fafc' }]}>{ayah.teksArab}</Text>
 
                     {/* Latin Transliteration */}
                     {!!ayah.teksLatin && (
-                      <Text style={styles.ayahLatin}>{ayah.teksLatin}</Text>
+                      <Text style={[styles.ayahLatin, isDarkMode && { color: '#34d399' }]}>{ayah.teksLatin}</Text>
                     )}
 
                     {/* Indonesian Translation */}
-                    <Text style={styles.ayahTrans}>{ayah.teksIndonesia}</Text>
+                    <Text style={[styles.ayahTrans, isDarkMode && { color: '#cbd5e1' }]}>{ayah.teksIndonesia}</Text>
                   </View>
                 );
               })}
