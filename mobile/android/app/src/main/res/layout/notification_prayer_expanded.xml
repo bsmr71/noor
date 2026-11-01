@@ -4,49 +4,13 @@
     android:layout_height="wrap_content"
     android:background="@drawable/bg_notif_container"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="8dp">
 
-    <!-- Header Row -->
+    <!-- Row 1: Prayer Title + City Tag + Compact Chronometer Badge -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@mipmap/ic_launcher" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:layout_weight="1"
-            android:letterSpacing="0.05"
-            android:text="NOOR • JADWAL SHOLAT DIGITAL"
-            android:textColor="#34D399"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/notif_expanded_city"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_notif_badge"
-            android:paddingHorizontal="7dp"
-            android:paddingVertical="2dp"
-            android:text="📍 Jakarta"
-            android:textColor="#FE932C"
-            android:textSize="9sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Center Hero Row: Prayer Name + Huge Chronometer Box -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -56,97 +20,101 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.06"
-                android:text="SHOLAT BERIKUTNYA"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/notif_expanded_prayer_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Adzan Ashar"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/notif_expanded_prayer_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:text="(14:54 WIB)"
+                    android:textColor="#FE932C"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/notif_expanded_city"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:background="@drawable/bg_notif_badge"
+                    android:paddingHorizontal="5dp"
+                    android:paddingVertical="1dp"
+                    android:text="📍 Jakarta"
+                    android:textColor="#A7F3D0"
+                    android:textSize="7.5sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/notif_expanded_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="± 59 menit lagi menuju Adzan Ashar"
                 android:textColor="#A7F3D0"
-                android:textSize="9sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/notif_expanded_prayer_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="Adzan Ashar"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/notif_expanded_prayer_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pukul 14:54 WIB"
-                android:textColor="#FE932C"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:textSize="9.5sp" />
         </LinearLayout>
 
-        <!-- Chronometer Glowing Box -->
+        <!-- Compact Slim Chronometer Pill -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:background="@drawable/bg_notif_box"
             android:gravity="center"
-            android:orientation="vertical"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="6dp">
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.08"
-                android:text="HITUNG MUNDUR"
-                android:textColor="#FE932C"
-                android:textSize="8sp"
-                android:textStyle="bold" />
+                android:layout_marginEnd="3dp"
+                android:text="⏳"
+                android:textSize="8sp" />
 
             <Chronometer
                 android:id="@+id/notif_expanded_chronometer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
                 android:countDown="true"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
+                android:textColor="#FE932C"
+                android:textSize="12.5sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Progress Bar with Subtitle -->
+    <!-- Row 2: Slim Progress Bar -->
+    <ProgressBar
+        android:id="@+id/notif_expanded_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3.5dp"
+        android:layout_marginTop="5dp"
+        android:max="100"
+        android:progress="65"
+        android:progressDrawable="@drawable/notif_progress_custom" />
+
+    <!-- Row 3: Compact 5-Prayer Timeline Pills -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:orientation="vertical">
-
-        <ProgressBar
-            android:id="@+id/notif_expanded_progress"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:max="100"
-            android:progress="65"
-            android:progressDrawable="@drawable/notif_progress_custom" />
-
-        <TextView
-            android:id="@+id/notif_expanded_subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:text="± 1 jam 9 menit lagi menuju Adzan Ashar"
-            android:textColor="#BBEDDD"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <!-- 5 Prayer Timeline Pills -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="5dp"
         android:gravity="center"
         android:orientation="horizontal"
         android:weightSum="5">
@@ -156,25 +124,25 @@
             android:id="@+id/pill_subuh"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="2dp"
+            android:layout_marginHorizontal="1.5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_notif_badge"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="4dp">
+            android:paddingVertical="2dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Subuh"
                 android:textColor="#A7F3D0"
-                android:textSize="8sp" />
+                android:textSize="7sp" />
             <TextView
                 android:id="@+id/time_subuh"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="04:08"
                 android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:textSize="8sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -183,25 +151,25 @@
             android:id="@+id/pill_dzuhur"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="2dp"
+            android:layout_marginHorizontal="1.5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_notif_badge"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="4dp">
+            android:paddingVertical="2dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Dzuhur"
                 android:textColor="#A7F3D0"
-                android:textSize="8sp" />
+                android:textSize="7sp" />
             <TextView
                 android:id="@+id/time_dzuhur"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="11:38"
                 android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:textSize="8sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -210,18 +178,18 @@
             android:id="@+id/pill_ashar"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="2dp"
+            android:layout_marginHorizontal="1.5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_notif_badge_active"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="4dp">
+            android:paddingVertical="2dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Ashar"
                 android:textColor="#002721"
-                android:textSize="8sp"
+                android:textSize="7sp"
                 android:textStyle="bold" />
             <TextView
                 android:id="@+id/time_ashar"
@@ -229,7 +197,7 @@
                 android:layout_height="wrap_content"
                 android:text="14:54"
                 android:textColor="#002721"
-                android:textSize="9sp"
+                android:textSize="8sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -238,25 +206,25 @@
             android:id="@+id/pill_maghrib"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="2dp"
+            android:layout_marginHorizontal="1.5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_notif_badge"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="4dp">
+            android:paddingVertical="2dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Maghrib"
                 android:textColor="#A7F3D0"
-                android:textSize="8sp" />
+                android:textSize="7sp" />
             <TextView
                 android:id="@+id/time_maghrib"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="17:48"
                 android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:textSize="8sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -265,27 +233,26 @@
             android:id="@+id/pill_isya"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="2dp"
+            android:layout_marginHorizontal="1.5dp"
             android:layout_weight="1"
             android:background="@drawable/bg_notif_badge"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingVertical="4dp">
+            android:paddingVertical="2dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Isya"
                 android:textColor="#A7F3D0"
-                android:textSize="8sp" />
+                android:textSize="7sp" />
             <TextView
                 android:id="@+id/time_isya"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="18:59"
                 android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:textSize="8sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
-

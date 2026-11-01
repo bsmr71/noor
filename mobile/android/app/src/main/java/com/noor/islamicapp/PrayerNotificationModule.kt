@@ -117,7 +117,7 @@ class PrayerNotificationModule(private val reactContext: ReactApplicationContext
             val expandedView = RemoteViews(reactContext.packageName, R.layout.notification_prayer_expanded).apply {
                 setTextViewText(R.id.notif_expanded_city, "📍 $validCity")
                 setTextViewText(R.id.notif_expanded_prayer_name, "Adzan $validPrayer")
-                setTextViewText(R.id.notif_expanded_prayer_time, "Pukul $validTime WIB")
+                setTextViewText(R.id.notif_expanded_prayer_time, "($validTime WIB)")
                 setTextViewText(R.id.notif_expanded_subtitle, message)
                 setProgressBar(R.id.notif_expanded_progress, 100, progressPercent.coerceIn(0, 100), false)
                 if (remainingMillis > 0) {
