@@ -218,7 +218,7 @@ export default function App() {
       cancelPrayerCountdownNotification();
     } else if (currentCity?.timings) {
       const status = getCurrentPrayerStatus(currentCity.timings, new Date());
-      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', true);
+      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', true, currentCity.timings);
     }
   };
 
@@ -267,7 +267,7 @@ export default function App() {
 
       // 1. Update status bar countdown notification
       const status = getCurrentPrayerStatus(currentCity.timings, now);
-      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', statusBarCountdownEnabled);
+      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', statusBarCountdownEnabled, currentCity.timings);
 
       // 2. Check Adzan Arrival
       if (!adzanReminder) return;

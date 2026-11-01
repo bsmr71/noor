@@ -6,11 +6,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
 
 class PrayerNotificationModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -81,40 +83,93 @@ class PrayerNotificationModule(private val reactContext: ReactApplicationContext
         message: String,
         isOngoing: Boolean,
         targetTimestampMillis: Double,
-        progressPercent: Int
+        progressPercent: Int,
+        prayerName: String?,
+        prayerTime: String?,
+        cityName: String?,
+        timings: ReadableMap?
     ) {
         try {
             val pendingIntent = getMainActivityPendingIntent()
             val smallIcon = R.mipmap.ic_launcher
             val targetTimeLong = targetTimestampMillis.toLong()
+            val validCity = cityName ?: "Jakarta"
+            val validPrayer = prayerName ?: "Sholat"
+            val validTime = prayerTime ?: "14:54"
+
+            val remainingMillis = targetTimeLong - System.currentTimeMillis()
+            val chronometerBase = android.os.SystemClock.elapsedRealtime() + remainingMillis
+
+            // 1. Collapsed View
+            val collapsedView = RemoteViews(reactContext.packageName, R.layout.notification_prayer_collapsed).apply {
+                setTextViewText(R.id.notif_collapsed_title, title)
+                setTextViewText(R.id.notif_collapsed_subtitle, message)
+                setProgressBar(R.id.notif_collapsed_progress, 100, progressPercent.coerceIn(0, 100), false)
+                if (remainingMillis > 0) {
+                    setChronometer(R.id.notif_collapsed_chronometer, chronometerBase, "%s", true)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        setChronometerCountDown(R.id.notif_collapsed_chronometer, true)
+                    }
+                }
+            }
+
+            // 2. Expanded View
+            val expandedView = RemoteViews(reactContext.packageName, R.layout.notification_prayer_expanded).apply {
+                setTextViewText(R.id.notif_expanded_city, "📍 $validCity")
+                setTextViewText(R.id.notif_expanded_prayer_name, "Adzan $validPrayer")
+                setTextViewText(R.id.notif_expanded_prayer_time, "Pukul $validTime WIB")
+                setTextViewText(R.id.notif_expanded_subtitle, message)
+                setProgressBar(R.id.notif_expanded_progress, 100, progressPercent.coerceIn(0, 100), false)
+                if (remainingMillis > 0) {
+                    setChronometer(R.id.notif_expanded_chronometer, chronometerBase, "%s", true)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        setChronometerCountDown(R.id.notif_expanded_chronometer, true)
+                    }
+                }
+
+                if (timings != null) {
+                    if (timings.hasKey("subuh")) setTextViewText(R.id.time_subuh, timings.getString("subuh"))
+                    if (timings.hasKey("dzuhur")) setTextViewText(R.id.time_dzuhur, timings.getString("dzuhur"))
+                    if (timings.hasKey("ashar")) setTextViewText(R.id.time_ashar, timings.getString("ashar"))
+                    if (timings.hasKey("maghrib")) setTextViewText(R.id.time_maghrib, timings.getString("maghrib"))
+                    if (timings.hasKey("isya")) setTextViewText(R.id.time_isya, timings.getString("isya"))
+
+                    val nextKey = if (timings.hasKey("nextKey")) timings.getString("nextKey")?.lowercase() else "ashar"
+                    val pillMap = mapOf(
+                        "subuh" to Pair(R.id.pill_subuh, R.id.time_subuh),
+                        "dzuhur" to Pair(R.id.pill_dzuhur, R.id.time_dzuhur),
+                        "ashar" to Pair(R.id.pill_ashar, R.id.time_ashar),
+                        "maghrib" to Pair(R.id.pill_maghrib, R.id.time_maghrib),
+                        "isya" to Pair(R.id.pill_isya, R.id.time_isya)
+                    )
+
+                    for ((key, pair) in pillMap) {
+                        val (pillId, timeId) = pair
+                        if (key == nextKey) {
+                            setInt(pillId, "setBackgroundResource", R.drawable.bg_notif_badge_active)
+                            setTextColor(timeId, android.graphics.Color.parseColor("#002721"))
+                        } else {
+                            setInt(pillId, "setBackgroundResource", R.drawable.bg_notif_badge)
+                            setTextColor(timeId, android.graphics.Color.WHITE)
+                        }
+                    }
+                }
+            }
 
             val builder = NotificationCompat.Builder(reactContext, CHANNEL_COUNTDOWN_ID)
                 .setSmallIcon(smallIcon)
+                .setColor(android.graphics.Color.parseColor("#0F3E36"))
+                .setColorized(true)
                 .setContentTitle(title)
                 .setContentText(message)
-                .setSubText("Jadwal Sholat Digital")
-                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setCustomContentView(collapsedView)
+                .setCustomBigContentView(expandedView)
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setOngoing(isOngoing)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(pendingIntent)
-
-            // Dynamic Prayer Progress Bar (0 - 100)
-            if (progressPercent in 0..100) {
-                builder.setProgress(100, progressPercent, false)
-            }
-
-            // Real-time ticking down Chronometer in Status Bar / Notification Center
-            if (targetTimeLong > System.currentTimeMillis()) {
-                builder.setWhen(targetTimeLong)
-                builder.setUsesChronometer(true)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    builder.setChronometerCountDown(true)
-                }
-            } else {
-                builder.setShowWhen(false)
-            }
 
             NotificationManagerCompat.from(reactContext).notify(NOTIFICATION_COUNTDOWN_ID, builder.build())
         } catch (e: Exception) {

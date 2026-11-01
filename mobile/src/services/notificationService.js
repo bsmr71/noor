@@ -30,7 +30,12 @@ export async function requestNotificationPermission() {
 /**
  * Menampilkan / memperbarui notifikasi hitung mundur adzan di status bar
  */
-export function updatePrayerCountdownNotification(prayerStatus, cityName = 'Jakarta', isEnabled = true) {
+export function updatePrayerCountdownNotification(
+  prayerStatus,
+  cityName = 'Jakarta',
+  isEnabled = true,
+  timings = null
+) {
   if (!PrayerNotification) return;
 
   if (!isEnabled) {
@@ -69,7 +74,26 @@ export function updatePrayerCountdownNotification(prayerStatus, cityName = 'Jaka
     const targetTimestampMillis = Date.now() + (totalSeconds * 1000);
     const progressPercent = Math.min(100, Math.max(0, Number(prayerStatus.progressPercent) || 0));
 
-    PrayerNotification.showCountdown(title, message, true, targetTimestampMillis, progressPercent);
+    const timingsMap = {
+      subuh: timings?.subuh || '04:08',
+      dzuhur: timings?.dzuhur || '11:38',
+      ashar: timings?.ashar || '14:54',
+      maghrib: timings?.maghrib || '17:48',
+      isya: timings?.isya || '18:59',
+      nextKey: prayerStatus.nextPrayerKey || 'ashar',
+    };
+
+    PrayerNotification.showCountdown(
+      title,
+      message,
+      true,
+      targetTimestampMillis,
+      progressPercent,
+      nextPrayer,
+      prayerStatus.nextPrayerTime || '',
+      cityName,
+      timingsMap
+    );
   } catch (err) {
     console.warn('Gagal memperbarui notifikasi status bar:', err);
   }
