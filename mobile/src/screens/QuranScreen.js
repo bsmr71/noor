@@ -17,6 +17,18 @@ import { Colors } from '../theme/colors';
 import { ALL_SURAHS, getSurahAudioUrl, getAyahAudioUrl } from '../data/surahList';
 import { SAMPLE_SURAHS_DETAIL } from '../data/sampleSurahData';
 import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
+import {
+  cacheSurahText,
+  getCachedSurahText,
+  isSurahTextDownloaded,
+  isSurahAudioOffline,
+  getSurahAudioSource,
+  downloadSurahAudio,
+  deleteSurahAudio,
+  isAyahAudioOffline,
+  getAyahAudioSource,
+  downloadAyahAudio,
+} from '../services/offlineStorageService';
 
 export default function QuranScreen({ selectedQori }) {
   const [search, setSearch] = useState('');
@@ -25,6 +37,13 @@ export default function QuranScreen({ selectedQori }) {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [playingAyahNumber, setPlayingAyahNumber] = useState(null);
+
+  // Offline Audio & Surah State
+  const [isTextOffline, setIsTextOffline] = useState(false);
+  const [isAudioOffline, setIsAudioOffline] = useState(false);
+  const [isDownloadingAudio, setIsDownloadingAudio] = useState(false);
+  const [downloadedAyat, setDownloadedAyat] = useState({});
+  const [downloadingAyahNum, setDownloadingAyahNum] = useState(null);
 
   // Filter surahs
   const filteredSurahs = useMemo(() => {
@@ -40,15 +59,42 @@ export default function QuranScreen({ selectedQori }) {
     );
   }, [search]);
 
+  // Check offline audio status for this surah & its verses
+  const checkOfflineAudios = async (surahNum, ayatList = []) => {
+    const qoriId = selectedQori?.id || 'alafasy';
+    const hasSurahAudio = await isSurahAudioOffline(surahNum, qoriId);
+    setIsAudioOffline(hasSurahAudio);
+
+    const ayatMap = {};
+    for (const ay of ayatList) {
+      if (ay?.nomorAyat) {
+        ayatMap[ay.nomorAyat] = await isAyahAudioOffline(surahNum, ay.nomorAyat, qoriId);
+      }
+    }
+    setDownloadedAyat(ayatMap);
+  };
+
   // Open Surah Reader
   const handleOpenSurah = async (surah) => {
     setSelectedSurah(surah);
     setIsLoadingDetail(true);
     setPlayingAyahNumber(null);
+    setIsAudioOffline(false);
+    setIsTextOffline(false);
 
     // Stop any existing sound
     stopCurrentAudio();
     setIsPlayingAudio(false);
+
+    // 0. Check offline cache first (Instant load without network!)
+    const cached = await getCachedSurahText(surah.number);
+    if (cached && Array.isArray(cached.ayat) && cached.ayat.length > 0) {
+      setSurahDetail(cached);
+      setIsLoadingDetail(false);
+      setIsTextOffline(true);
+      checkOfflineAudios(surah.number, cached.ayat);
+      return;
+    }
 
     try {
       // 1. Try public eQuran.id API v2 (Official, very fast & accurate)
@@ -59,6 +105,9 @@ export default function QuranScreen({ selectedQori }) {
         if (data && Array.isArray(data.ayat) && data.ayat.length > 0) {
           setSurahDetail(data);
           setIsLoadingDetail(false);
+          setIsTextOffline(true);
+          await cacheSurahText(surah.number, data);
+          checkOfflineAudios(surah.number, data.ayat);
           return;
         }
       }
@@ -69,7 +118,7 @@ export default function QuranScreen({ selectedQori }) {
         const gadingJson = await gadingRes.json();
         const gData = gadingJson.data;
         if (gData && Array.isArray(gData.verses)) {
-          setSurahDetail({
+          const formatted = {
             nomor: gData.number,
             namaLatin: gData.name?.transliteration?.id || surah.latin,
             nama: gData.name?.short || surah.arabic,
@@ -83,8 +132,12 @@ export default function QuranScreen({ selectedQori }) {
               teksIndonesia: v.translation?.id || '',
               audio: v.audio?.secondary?.[0] || v.audio?.primary || null,
             })),
-          });
+          };
+          setSurahDetail(formatted);
           setIsLoadingDetail(false);
+          setIsTextOffline(true);
+          await cacheSurahText(surah.number, formatted);
+          checkOfflineAudios(surah.number, formatted.ayat);
           return;
         }
       }
@@ -92,7 +145,7 @@ export default function QuranScreen({ selectedQori }) {
       // 3. Fallback to offline cached sample surahs
       const offlineSample = SAMPLE_SURAHS_DETAIL[surah.number];
       if (offlineSample && Array.isArray(offlineSample.verses)) {
-        setSurahDetail({
+        const sampleData = {
           nomor: offlineSample.number,
           namaLatin: offlineSample.name,
           nama: offlineSample.arabicName,
@@ -105,8 +158,12 @@ export default function QuranScreen({ selectedQori }) {
             teksLatin: v.latin,
             teksIndonesia: v.translation,
           })),
-        });
+        };
+        setSurahDetail(sampleData);
         setIsLoadingDetail(false);
+        setIsTextOffline(true);
+        await cacheSurahText(surah.number, sampleData);
+        checkOfflineAudios(surah.number, sampleData.ayat);
         return;
       }
 
@@ -144,30 +201,79 @@ export default function QuranScreen({ selectedQori }) {
             teksIndonesia: v.translation,
           })),
         });
-      } else {
-        setSurahDetail({
-          nomor: surah.number,
-          namaLatin: surah.latin,
-          nama: surah.arabic,
-          arti: surah.arti,
-          jumlahAyat: surah.ayahCount,
-          tempatTurun: surah.type,
-          ayat: [
-            {
-              nomorAyat: 1,
-              teksArab: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-              teksLatin: 'Bismillaahir-rahmaanir-rahiim',
-              teksIndonesia: 'Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.',
-            },
-          ],
-        });
       }
     } finally {
       setIsLoadingDetail(false);
     }
   };
 
-  const handleToggleSurahAudio = () => {
+  const handleDownloadSurahAudio = async () => {
+    if (!selectedSurah) return;
+    const qoriId = selectedQori?.id || 'alafasy';
+    const paddedNum = String(selectedSurah.number).padStart(3, '0');
+    const remoteUrl =
+      surahDetail?.audioFull?.['05'] ||
+      surahDetail?.audioFull?.['01'] ||
+      `${selectedQori?.surahServer || 'https://server8.mp3quran.net/afs/'}${paddedNum}.mp3`;
+
+    try {
+      setIsDownloadingAudio(true);
+      await downloadSurahAudio(selectedSurah.number, qoriId, remoteUrl);
+      setIsAudioOffline(true);
+      Alert.alert(
+        'Berhasil Diunduh',
+        `Audio Surat ${selectedSurah.latin} (${selectedQori?.name || 'Misyari Rasyid'}) kini tersimpan offline di HP Anda.`
+      );
+    } catch (e) {
+      Alert.alert('Gagal Mengunduh', 'Pastikan koneksi internet stabil saat mengunduh audio surat.');
+    } finally {
+      setIsDownloadingAudio(false);
+    }
+  };
+
+  const handleDeleteSurahAudio = () => {
+    if (!selectedSurah) return;
+    const qoriId = selectedQori?.id || 'alafasy';
+    Alert.alert('Hapus Audio Surat', `Hapus audio offline Surat ${selectedSurah.latin}?`, [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteSurahAudio(selectedSurah.number, qoriId);
+          setIsAudioOffline(false);
+        },
+      },
+    ]);
+  };
+
+  const handleToggleDownloadAyah = async (ayah) => {
+    if (!selectedSurah) return;
+    const qoriId = selectedQori?.id || 'alafasy';
+
+    if (downloadedAyat[ayah.nomorAyat]) {
+      Alert.alert('Audio Offline', `Audio ayat ${ayah.nomorAyat} sudah tersimpan offline di memori HP.`);
+      return;
+    }
+
+    const ayahUrl =
+      ayah.audio?.['05'] ||
+      ayah.audio?.['01'] ||
+      (typeof ayah.audio === 'string' ? ayah.audio : null) ||
+      getAyahAudioUrl(selectedSurah.number, ayah.nomorAyat, selectedQori);
+
+    try {
+      setDownloadingAyahNum(ayah.nomorAyat);
+      await downloadAyahAudio(selectedSurah.number, ayah.nomorAyat, qoriId, ayahUrl);
+      setDownloadedAyat((prev) => ({ ...prev, [ayah.nomorAyat]: true }));
+    } catch (e) {
+      Alert.alert('Gagal', 'Tidak dapat mengunduh audio ayat. Cek koneksi internet.');
+    } finally {
+      setDownloadingAyahNum(null);
+    }
+  };
+
+  const handleToggleSurahAudio = async () => {
     if (!selectedSurah) return;
 
     if (isPlayingAudio) {
@@ -177,19 +283,21 @@ export default function QuranScreen({ selectedQori }) {
       return;
     }
 
-    // Try eQuran CDN audio or qori audio
+    const qoriId = selectedQori?.id || 'alafasy';
     const paddedNum = String(selectedSurah.number).padStart(3, '0');
-    const audioUrl =
+    const remoteUrl =
       surahDetail?.audioFull?.['05'] ||
       surahDetail?.audioFull?.['01'] ||
       `${selectedQori?.surahServer || 'https://server8.mp3quran.net/afs/'}${paddedNum}.mp3`;
 
-    playAudioUrl(audioUrl);
+    const audioSource = await getSurahAudioSource(selectedSurah.number, qoriId, remoteUrl);
+
+    playAudioUrl(audioSource);
     setIsPlayingAudio(true);
     setPlayingAyahNumber(null);
   };
 
-  const handlePlayAyahAudio = (ayah) => {
+  const handlePlayAyahAudio = async (ayah) => {
     if (!selectedSurah) return;
 
     if (playingAyahNumber === ayah.nomorAyat) {
@@ -201,13 +309,21 @@ export default function QuranScreen({ selectedQori }) {
     stopCurrentAudio();
     setIsPlayingAudio(false);
 
-    const ayahUrl =
+    const qoriId = selectedQori?.id || 'alafasy';
+    const remoteAyahUrl =
       ayah.audio?.['05'] ||
       ayah.audio?.['01'] ||
       (typeof ayah.audio === 'string' ? ayah.audio : null) ||
       getAyahAudioUrl(selectedSurah.number, ayah.nomorAyat, selectedQori);
 
-    playAudioUrl(ayahUrl);
+    const ayahSource = await getAyahAudioSource(
+      selectedSurah.number,
+      ayah.nomorAyat,
+      qoriId,
+      remoteAyahUrl
+    );
+
+    playAudioUrl(ayahSource);
     setPlayingAyahNumber(ayah.nomorAyat);
   };
 
@@ -317,6 +433,49 @@ export default function QuranScreen({ selectedQori }) {
             </TouchableOpacity>
           </View>
 
+          {/* Offline Actions Bar */}
+          <View style={styles.offlineControlBar}>
+            <View style={styles.offlineTextPill}>
+              <Ionicons name="checkmark-circle" size={13} color="#059669" />
+              <Text style={styles.offlineTextLabel}>Teks Tersimpan Offline</Text>
+            </View>
+
+            {/* Audio Surah Offline Status / Download */}
+            {isAudioOffline ? (
+              <View style={styles.audioOfflineGroup}>
+                <View style={styles.audioOfflineBadge}>
+                  <Ionicons name="cloud-done" size={12} color="#059669" />
+                  <Text style={styles.audioOfflineText}>Audio Offline</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleDeleteSurahAudio}
+                  style={styles.deleteAudioBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={13} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.downloadAudioBtn}
+                onPress={handleDownloadSurahAudio}
+                disabled={isDownloadingAudio}
+                activeOpacity={0.8}
+              >
+                {isDownloadingAudio ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="cloud-download-outline" size={13} color="#ffffff" />
+                    <Text style={styles.downloadAudioBtnText}>
+                      Unduh Audio ({selectedQori?.name?.split(' ')?.[1] || 'Qori'})
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* Reader Content */}
           {isLoadingDetail ? (
             <View style={styles.loadingBox}>
@@ -350,6 +509,24 @@ export default function QuranScreen({ selectedQori }) {
                         <Text style={styles.ayahNumberText}>{ayah.nomorAyat}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        {/* Download / Offline Ayah Audio Button */}
+                        <TouchableOpacity
+                          onPress={() => handleToggleDownloadAyah(ayah)}
+                          style={styles.ayahDownloadBtn}
+                          activeOpacity={0.7}
+                          disabled={downloadingAyahNum === ayah.nomorAyat}
+                        >
+                          {downloadingAyahNum === ayah.nomorAyat ? (
+                            <ActivityIndicator size="small" color="#059669" />
+                          ) : (
+                            <Ionicons
+                              name={downloadedAyat[ayah.nomorAyat] ? 'checkmark-circle' : 'cloud-download-outline'}
+                              size={18}
+                              color={downloadedAyat[ayah.nomorAyat] ? '#059669' : '#9ca3af'}
+                            />
+                          )}
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                           onPress={() => handlePlayAyahAudio(ayah)}
                           style={[styles.ayahActionBtn, isThisAyahPlaying && styles.ayahActionBtnActive]}
@@ -628,5 +805,70 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: '#374151',
     lineHeight: 19,
+  },
+  offlineControlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f4',
+  },
+  offlineTextPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 12,
+  },
+  offlineTextLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#065f46',
+  },
+  audioOfflineGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  audioOfflineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 12,
+  },
+  audioOfflineText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#047857',
+  },
+  deleteAudioBtn: {
+    backgroundColor: '#fee2e2',
+    padding: 5,
+    borderRadius: 10,
+  },
+  downloadAudioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 12,
+  },
+  downloadAudioBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  ayahDownloadBtn: {
+    padding: 3,
   },
 });

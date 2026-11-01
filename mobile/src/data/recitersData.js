@@ -10,7 +10,10 @@ export const MUADZIN_LIST = [
     badge: "Masjidil Haram",
     description: "Lantunan takbir menggelegar, berwibawa, dan sangat ikonik. Muadzin senior Masjidil Haram sejak tahun 1975.",
     audioUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_HQ.mp3",
-    avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80"
+    avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80",
+    isDefault: true,
+    isBundled: true,
+    offlineBadge: "Bawaan Offline"
   },
   {
     id: "surhi",

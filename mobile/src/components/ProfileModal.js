@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,19 @@ import {
   Switch,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { Fonts } from '../theme/fonts';
 import { QORI_LIST, MUADZIN_LIST, AVATAR_OPTIONS } from '../data/recitersData';
 import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
+import {
+  isMuadzinOffline,
+  getMuadzinAudioSource,
+  downloadMuadzinAudio,
+  deleteMuadzinAudio,
+} from '../services/offlineStorageService';
 import { ADMIN_CONSOLE_URL } from '../services/apiClient';
 import KeyboardSafeModalWrapper from './KeyboardSafeModalWrapper';
 import KeyboardAwareScrollView from './KeyboardAwareScrollView';
@@ -71,7 +78,55 @@ export default function ProfileModal({
     setPreviewingId(null);
   };
 
-  const handlePlayPreview = (id, url) => {
+  // Offline Muadzin state
+  const [downloadedMuadzins, setDownloadedMuadzins] = useState({});
+  const [downloadingMuadzinId, setDownloadingMuadzinId] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    const checkOfflineMuadzins = async () => {
+      const map = {};
+      for (const m of MUADZIN_LIST) {
+        map[m.id] = await isMuadzinOffline(m.id);
+      }
+      if (active) setDownloadedMuadzins(map);
+    };
+    if (visible && activeTab === 'muadzin') {
+      checkOfflineMuadzins();
+    }
+    return () => {
+      active = false;
+    };
+  }, [visible, activeTab]);
+
+  const handleDownloadMuadzin = async (m) => {
+    try {
+      setDownloadingMuadzinId(m.id);
+      await downloadMuadzinAudio(m);
+      setDownloadedMuadzins((prev) => ({ ...prev, [m.id]: true }));
+      Alert.alert('Berhasil Diunduh', `Audio adzan ${m.name} kini tersimpan offline di HP Anda.`);
+    } catch (e) {
+      Alert.alert('Gagal Mengunduh', 'Pastikan koneksi internet aktif untuk mengunduh audio.');
+    } finally {
+      setDownloadingMuadzinId(null);
+    }
+  };
+
+  const handleDeleteMuadzin = (m) => {
+    Alert.alert('Hapus Audio Offline', `Hapus audio tersimpan untuk ${m.name}?`, [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteMuadzinAudio(m.id);
+          setDownloadedMuadzins((prev) => ({ ...prev, [m.id]: false }));
+        },
+      },
+    ]);
+  };
+
+  const handlePlayPreview = async (id, url, muadzinObj = null) => {
     if (previewingId === id) {
       stopPreviewAudio();
       return;
@@ -79,7 +134,8 @@ export default function ProfileModal({
 
     stopPreviewAudio();
     setPreviewingId(id);
-    playAudioUrl(url);
+    const src = muadzinObj ? await getMuadzinAudioSource(muadzinObj) : url;
+    playAudioUrl(src);
   };
 
   const handleClose = async () => {
@@ -616,11 +672,22 @@ export default function ProfileModal({
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         <Image source={{ uri: m.avatar }} style={styles.reciterAvatar} />
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             <Text style={styles.reciterName}>{m.name}</Text>
                             <View style={styles.reciterBadge}>
                               <Text style={styles.reciterBadgeText}>{m.badge}</Text>
                             </View>
+                            {m.id === 'mulla' ? (
+                              <View style={styles.offlineBundledBadge}>
+                                <Ionicons name="checkmark-circle" size={11} color="#059669" />
+                                <Text style={styles.offlineBundledText}>Bawaan Offline</Text>
+                              </View>
+                            ) : downloadedMuadzins[m.id] ? (
+                              <View style={styles.offlineDownloadedBadge}>
+                                <Ionicons name="cloud-done" size={11} color="#059669" />
+                                <Text style={styles.offlineDownloadedText}>Offline</Text>
+                              </View>
+                            ) : null}
                           </View>
                           <Text style={styles.reciterArabic}>{m.arabicName}</Text>
                           <Text style={styles.reciterStyle}>{m.title}</Text>
@@ -631,7 +698,7 @@ export default function ProfileModal({
                       <View style={styles.reciterActionsRow}>
                         <TouchableOpacity
                           style={[styles.sampleBtn, isPlaying && styles.sampleBtnPlaying]}
-                          onPress={() => handlePlayPreview(m.id, m.audioUrl)}
+                          onPress={() => handlePlayPreview(m.id, m.audioUrl, m)}
                         >
                           <MaterialCommunityIcons
                             name={isPlaying ? 'pause' : 'volume-high'}
@@ -643,12 +710,41 @@ export default function ProfileModal({
                           </Text>
                         </TouchableOpacity>
 
+                        {/* Offline Download / Delete Button */}
+                        {m.id !== 'mulla' && (
+                          downloadedMuadzins[m.id] ? (
+                            <TouchableOpacity
+                              style={styles.deleteOfflineBtn}
+                              onPress={() => handleDeleteMuadzin(m)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="trash-outline" size={15} color="#dc2626" />
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              style={styles.downloadOfflineBtn}
+                              onPress={() => handleDownloadMuadzin(m)}
+                              disabled={downloadingMuadzinId === m.id}
+                              activeOpacity={0.7}
+                            >
+                              {downloadingMuadzinId === m.id ? (
+                                <ActivityIndicator size="small" color="#059669" />
+                              ) : (
+                                <>
+                                  <Ionicons name="cloud-download-outline" size={13} color="#059669" />
+                                  <Text style={styles.downloadOfflineText}>Unduh Offline</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )
+                        )}
+
                         <TouchableOpacity
                           style={[styles.selectBtn, isSelected && styles.selectBtnActive]}
                           onPress={() => onSelectMuadzin(m)}
                         >
                           <Text style={[styles.selectBtnText, isSelected && styles.selectBtnTextActive]}>
-                            {isSelected ? '✓ Muadzin Aktif' : 'Pilih Muadzin'}
+                            {isSelected ? '✓ Aktif' : 'Pilih'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1156,6 +1252,64 @@ const styles = StyleSheet.create({
   },
   selectBtnTextActive: {
     color: '#ffffff',
+  },
+  offlineBundledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#a7f3d0',
+  },
+  offlineBundledText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  offlineDownloadedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#a7f3d0',
+  },
+  offlineDownloadedText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  downloadOfflineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  downloadOfflineText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  deleteOfflineBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   settingRow: {
     flexDirection: 'row',

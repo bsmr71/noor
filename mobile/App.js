@@ -41,6 +41,7 @@ import {
   triggerAdzanNotification,
   cancelPrayerCountdownNotification,
 } from './src/services/notificationService';
+import { initOfflineDirectories, getMuadzinAudioSource } from './src/services/offlineStorageService';
 
 // Data
 import { INDONESIAN_CITIES } from './src/data/citiesPrayerData';
@@ -121,6 +122,9 @@ export default function App() {
 
     // Request notification permission on Android 13+
     requestNotificationPermission();
+
+    // Inisialisasi direktori offline audio & Al-Qur'an
+    initOfflineDirectories();
   }, []);
 
   const persistUser = (nextUser) => {
@@ -227,30 +231,36 @@ export default function App() {
     AsyncStorage.setItem('noor_mobile_muadzin', JSON.stringify(muadzin)).catch(() => {});
   };
 
-  const handleTestAdzan = (prayerName = 'Dzuhur') => {
-    const audioUrl = selectedMuadzin?.audioUrl || MUADZIN_LIST[0].audioUrl;
-    playAudioUrl(audioUrl);
+  const handleTestAdzan = async (prayerName = 'Dzuhur') => {
+    const muadzin = selectedMuadzin || MUADZIN_LIST[0];
+    const audioSource = await getMuadzinAudioSource(muadzin);
+    playAudioUrl(audioSource);
     setAdzanModal({
       visible: true,
       prayerName,
       prayerTime: currentCity?.timings?.[prayerName.toLowerCase()] || '11:40',
       isTest: true,
+      selectedMuadzin: muadzin,
+      audioSource,
     });
   };
 
-  const handleTriggerAdzan = (prayerName, prayerKey, prayerTime) => {
-    let audioUrl = selectedMuadzin?.audioUrl || MUADZIN_LIST[0].audioUrl;
+  const handleTriggerAdzan = async (prayerName, prayerKey, prayerTime) => {
+    let muadzin = selectedMuadzin || MUADZIN_LIST[0];
     if (prayerKey === 'subuh') {
       const fajr = MUADZIN_LIST.find((m) => m.id === 'fajr_makkah');
-      audioUrl = fajr?.audioUrl || audioUrl;
+      muadzin = fajr || muadzin;
     }
-    playAudioUrl(audioUrl);
+    const audioSource = await getMuadzinAudioSource(muadzin);
+    playAudioUrl(audioSource);
     triggerAdzanNotification(prayerName, currentCity?.name || 'Jakarta', prayerTime);
     setAdzanModal({
       visible: true,
       prayerName,
       prayerTime,
       isTest: false,
+      selectedMuadzin: muadzin,
+      audioSource,
     });
   };
 

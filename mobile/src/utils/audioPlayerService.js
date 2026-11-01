@@ -3,14 +3,17 @@ import { createAudioPlayer } from 'expo-audio';
 
 let activePlayer = null;
 
-export function playAudioUrl(url) {
+export function playAudioUrl(source) {
   try {
     if (activePlayer) {
-      activePlayer.pause();
-      activePlayer.release();
+      try {
+        activePlayer.pause();
+        activePlayer.release();
+      } catch (e) {}
       activePlayer = null;
     }
-    activePlayer = createAudioPlayer(url);
+    if (!source) return null;
+    activePlayer = createAudioPlayer(source);
     activePlayer.play();
     return activePlayer;
   } catch (e) {
@@ -18,6 +21,8 @@ export function playAudioUrl(url) {
     return null;
   }
 }
+
+export const playAudioSource = playAudioUrl;
 
 export function stopCurrentAudio() {
   if (activePlayer) {

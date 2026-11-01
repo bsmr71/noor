@@ -12,6 +12,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { stopCurrentAudio, playAudioUrl } from '../utils/audioPlayerService';
+import { getMuadzinAudioSource } from '../services/offlineStorageService';
 
 export default function AdzanModal({
   visible,
@@ -20,6 +21,7 @@ export default function AdzanModal({
   prayerTime = '11:40',
   cityName = 'Jakarta',
   selectedMuadzin = null,
+  audioSource = null,
   isTest = false,
 }) {
   const [isPlaying, setIsPlaying] = useState(true);
@@ -121,11 +123,10 @@ export default function AdzanModal({
     setIsPlaying(false);
   };
 
-  const handleReplayAudio = () => {
-    if (selectedMuadzin?.audioUrl) {
-      playAudioUrl(selectedMuadzin.audioUrl);
-      setIsPlaying(true);
-    }
+  const handleReplayAudio = async () => {
+    const src = audioSource || (await getMuadzinAudioSource(selectedMuadzin));
+    playAudioUrl(src);
+    setIsPlaying(true);
   };
 
   const handleClose = () => {
