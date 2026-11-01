@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { Colors } from '../theme/colors';
 import { ALL_SURAHS, getSurahAudioUrl, getAyahAudioUrl } from '../data/surahList';
 import { SAMPLE_SURAHS_DETAIL } from '../data/sampleSurahData';
 import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
+import { renderTajweedArabic, TAJWEED_LEGEND } from '../utils/tajweedParser';
 import {
   cacheSurahText,
   getCachedSurahText,
@@ -28,6 +29,12 @@ import {
   isAyahAudioOffline,
   getAyahAudioSource,
   downloadAyahAudio,
+  cacheSurahTafsir,
+  getCachedSurahTafsir,
+  saveLastRead,
+  getLastRead,
+  getBookmarks,
+  toggleBookmark,
 } from '../services/offlineStorageService';
 
 export default function QuranScreen({ selectedQori, isDarkMode = false }) {
@@ -44,6 +51,117 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
   const [isDownloadingAudio, setIsDownloadingAudio] = useState(false);
   const [downloadedAyat, setDownloadedAyat] = useState({});
   const [downloadingAyahNum, setDownloadingAyahNum] = useState(null);
+
+  // Tab & History & Bookmark State
+  const [activeListTab, setActiveListTab] = useState('surah'); // 'surah' | 'bookmarks'
+  const [lastRead, setLastRead] = useState(null);
+  const [bookmarks, setBookmarks] = useState([]);
+
+  // Tajweed & Tafsir State
+  const [isTajweedEnabled, setIsTajweedEnabled] = useState(true);
+  const [isTajweedGuideVisible, setIsTajweedGuideVisible] = useState(false);
+  const [isTafsirModalVisible, setIsTafsirModalVisible] = useState(false);
+  const [selectedTafsirAyah, setSelectedTafsirAyah] = useState(null);
+  const [surahTafsirMap, setSurahTafsirMap] = useState({});
+  const [isLoadingTafsir, setIsLoadingTafsir] = useState(false);
+
+  // Load Bookmarks & Last Read on mount
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    const lr = await getLastRead();
+    if (lr) setLastRead(lr);
+    const bms = await getBookmarks();
+    setBookmarks(bms);
+  };
+
+  const handleSetLastRead = async (ayah) => {
+    if (!selectedSurah) return;
+    const count = selectedSurah.ayahCount || selectedSurah.numberOfAyat || surahDetail?.jumlahAyat || 7;
+    const saved = await saveLastRead(selectedSurah.number, selectedSurah.latin, ayah.nomorAyat, count);
+    setLastRead(saved);
+    Alert.alert(
+      'Tersimpan Sebagai Terakhir Dibaca',
+      `QS. ${selectedSurah.latin} ayat ${ayah.nomorAyat} kini menjadi titik bacaan terakhir Anda.`
+    );
+  };
+
+  const handleToggleAyahBookmark = async (ayah) => {
+    if (!selectedSurah) return;
+    const isNowBookmarked = await toggleBookmark({
+      surahNumber: selectedSurah.number,
+      surahLatin: selectedSurah.latin,
+      ayahNumber: ayah.nomorAyat,
+      teksArab: ayah.teksArab,
+      teksIndonesia: ayah.teksIndonesia,
+    });
+    const bms = await getBookmarks();
+    setBookmarks(bms);
+    Alert.alert(
+      isNowBookmarked ? 'Ayat Ditandai' : 'Tanda Dihapus',
+      isNowBookmarked
+        ? `QS. ${selectedSurah.latin} ayat ${ayah.nomorAyat} berhasil disimpan di daftar Ayat Ditandai.`
+        : `Tanda pada QS. ${selectedSurah.latin} ayat ${ayah.nomorAyat} telah dihapus.`
+    );
+  };
+
+  const loadSurahTafsir = async (surahNumber) => {
+    // 1. Cek penyimpanan offline/cache
+    const cached = await getCachedSurahTafsir(surahNumber);
+    if (cached && Array.isArray(cached.tafsir)) {
+      const map = {};
+      cached.tafsir.forEach((t) => {
+        map[t.ayat] = t.teks;
+      });
+      setSurahTafsirMap(map);
+      return map;
+    }
+
+    // 2. Ambil dari API resmi Kemenag RI (eQuran.id v2)
+    try {
+      setIsLoadingTafsir(true);
+      const res = await fetch(`https://equran.id/api/v2/tafsir/${surahNumber}`);
+      const json = await res.json();
+      if (json?.data?.tafsir) {
+        await cacheSurahTafsir(surahNumber, json.data);
+        const map = {};
+        json.data.tafsir.forEach((t) => {
+          map[t.ayat] = t.teks;
+        });
+        setSurahTafsirMap(map);
+        return map;
+      }
+    } catch (e) {
+      console.warn('Gagal memuat tafsir:', e);
+    } finally {
+      setIsLoadingTafsir(false);
+    }
+    return {};
+  };
+
+  const handleOpenTafsir = async (ayah) => {
+    setSelectedTafsirAyah({
+      surahNumber: selectedSurah.number,
+      surahLatin: selectedSurah.latin,
+      ayahNumber: ayah.nomorAyat,
+      teksArab: ayah.teksArab,
+      teksIndonesia: ayah.teksIndonesia,
+      tafsirTeks: surahTafsirMap[ayah.nomorAyat] || '',
+    });
+    setIsTafsirModalVisible(true);
+
+    if (!surahTafsirMap[ayah.nomorAyat]) {
+      const map = await loadSurahTafsir(selectedSurah.number);
+      if (map[ayah.nomorAyat]) {
+        setSelectedTafsirAyah((prev) => ({
+          ...prev,
+          tafsirTeks: map[ayah.nomorAyat],
+        }));
+      }
+    }
+  };
 
   // Filter surahs
   const filteredSurahs = useMemo(() => {
@@ -343,66 +461,186 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
 
   return (
     <View style={[styles.container, isDarkMode && { backgroundColor: '#070c12' }]}>
-      {/* Header Search */}
+      {/* Header Search & Title */}
       <View style={[styles.header, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
         <Text style={[styles.headerTitle, isDarkMode && { color: '#f8fafc' }]}>Al-Qur'an Al-Karim</Text>
-        <Text style={[styles.headerSub, isDarkMode && { color: '#94a3b8' }]}>114 Surah • Terjemahan Kemenag RI & Audio Murottal</Text>
+        <Text style={[styles.headerSub, isDarkMode && { color: '#94a3b8' }]}>
+          114 Surah • Terjemahan Kemenag RI, Tajwid Warna & Tafsir
+        </Text>
 
-        <View style={[styles.searchBar, isDarkMode && { backgroundColor: '#152232', borderColor: '#223447' }]}>
-          <Ionicons name="search" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} style={{ marginRight: 8 }} />
-          <TextInput
-            style={[styles.searchInput, isDarkMode && { color: '#f8fafc' }]}
-            placeholder="Cari nama Surah, arti, atau nomor (1-114)..."
-            placeholderTextColor={isDarkMode ? '#64748b' : '#9ca3af'}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Surah List */}
-      <FlatList
-        data={filteredSurahs}
-        keyExtractor={(item) => String(item.number)}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
+        {/* Banner Riwayat Terakhir Membaca */}
+        {lastRead && (
           <TouchableOpacity
-            style={[styles.surahItem, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
+            style={[styles.lastReadCard, isDarkMode && styles.lastReadCardDark]}
+            onPress={() => {
+              const surah = ALL_SURAHS.find((s) => s.number === lastRead.surahNumber) || ALL_SURAHS[0];
+              handleOpenSurah(surah, lastRead.ayahNumber);
+            }}
             activeOpacity={0.8}
-            onPress={() => handleOpenSurah(item)}
           >
-            {/* Number badge */}
-            <View style={[styles.numBadge, isDarkMode && { backgroundColor: '#1e293b' }]}>
-              <Text style={[styles.numText, isDarkMode && { color: '#34d399' }]}>{item.number}</Text>
-            </View>
-
-            {/* Title & Info */}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.latinName, isDarkMode && { color: '#f8fafc' }]}>{item.latin}</Text>
-                <View style={[styles.typeBadge, item.type === 'Madaniyah' && styles.typeBadgeMadaniyah]}>
-                  <Text style={[styles.typeText, item.type === 'Madaniyah' && styles.typeTextMadaniyah]}>
-                    {item.type}
-                  </Text>
-                </View>
+            <View style={styles.lastReadLeft}>
+              <View style={styles.lastReadIconCircle}>
+                <Ionicons name="bookmark" size={15} color="#ffffff" />
               </View>
-              <Text style={[styles.meaningText, isDarkMode && { color: '#94a3b8' }]}>
-                {item.arti} • {item.ayahCount} Ayat
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lastReadBadge}>TERAKHIR DIBACA</Text>
+                <Text style={[styles.lastReadSurahName, isDarkMode && { color: '#f8fafc' }]}>
+                  QS. {lastRead.surahLatin} • Ayat {lastRead.ayahNumber}
+                </Text>
+              </View>
             </View>
-
-            {/* Arabic calligraphy */}
-            <Text style={[styles.arabicName, isDarkMode && { color: '#34d399' }]}>{item.arabic}</Text>
+            <View style={styles.lastReadAction}>
+              <Text style={styles.lastReadActionText}>Lanjutkan Baca</Text>
+              <Ionicons name="chevron-forward" size={14} color="#059669" />
+            </View>
           </TouchableOpacity>
         )}
-      />
+
+        {/* Tab Switcher: Semua Surat vs Ayat Ditandai */}
+        <View style={[styles.quranTabSwitcher, isDarkMode && styles.quranTabSwitcherDark]}>
+          <TouchableOpacity
+            style={[styles.quranTabBtn, activeListTab === 'surah' && styles.quranTabBtnActive]}
+            onPress={() => setActiveListTab('surah')}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="book-outline"
+              size={13}
+              color={activeListTab === 'surah' ? '#ffffff' : (isDarkMode ? '#94a3b8' : '#6f7975')}
+            />
+            <Text style={[styles.quranTabBtnText, activeListTab === 'surah' && styles.quranTabBtnTextActive]}>
+              Semua Surat (114)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.quranTabBtn, activeListTab === 'bookmarks' && styles.quranTabBtnActive]}
+            onPress={() => setActiveListTab('bookmarks')}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="bookmark"
+              size={13}
+              color={activeListTab === 'bookmarks' ? '#ffffff' : (isDarkMode ? '#94a3b8' : '#6f7975')}
+            />
+            <Text style={[styles.quranTabBtnText, activeListTab === 'bookmarks' && styles.quranTabBtnTextActive]}>
+              Ayat Ditandai ({bookmarks.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeListTab === 'surah' && (
+          <View style={[styles.searchBar, isDarkMode && { backgroundColor: '#152232', borderColor: '#223447' }]}>
+            <Ionicons name="search" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} style={{ marginRight: 8 }} />
+            <TextInput
+              style={[styles.searchInput, isDarkMode && { color: '#f8fafc' }]}
+              placeholder="Cari nama Surah, arti, atau nomor (1-114)..."
+              placeholderTextColor={isDarkMode ? '#64748b' : '#9ca3af'}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Main List Content */}
+      {activeListTab === 'surah' ? (
+        <FlatList
+          data={filteredSurahs}
+          keyExtractor={(item) => String(item.number)}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.surahItem, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
+              activeOpacity={0.8}
+              onPress={() => handleOpenSurah(item)}
+            >
+              {/* Number badge */}
+              <View style={[styles.numBadge, isDarkMode && { backgroundColor: '#1e293b' }]}>
+                <Text style={[styles.numText, isDarkMode && { color: '#34d399' }]}>{item.number}</Text>
+              </View>
+
+              {/* Title & Info */}
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.latinName, isDarkMode && { color: '#f8fafc' }]}>{item.latin}</Text>
+                  <View style={[styles.typeBadge, item.type === 'Madaniyah' && styles.typeBadgeMadaniyah]}>
+                    <Text style={[styles.typeText, item.type === 'Madaniyah' && styles.typeTextMadaniyah]}>
+                      {item.type}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.meaningText, isDarkMode && { color: '#94a3b8' }]}>
+                  {item.arti} • {item.ayahCount} Ayat
+                </Text>
+              </View>
+
+              {/* Arabic calligraphy */}
+              <Text style={[styles.arabicName, isDarkMode && { color: '#34d399' }]}>{item.arabic}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      ) : (
+        /* Bookmarks List Tab */
+        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+          {bookmarks.length === 0 ? (
+            <View style={styles.emptyBookmarksBox}>
+              <Ionicons name="bookmark-outline" size={48} color={isDarkMode ? '#475569' : '#cbd5e1'} />
+              <Text style={[styles.emptyBookmarksTitle, isDarkMode && { color: '#f8fafc' }]}>
+                Belum Ada Ayat yang Ditandai
+              </Text>
+              <Text style={[styles.emptyBookmarksDesc, isDarkMode && { color: '#94a3b8' }]}>
+                Saat membaca surat, tekan ikon penanda (bookmark) pada ayat untuk menyimpannya di sini agar mudah dibuka kembali kapan saja.
+              </Text>
+            </View>
+          ) : (
+            bookmarks.map((b) => (
+              <View key={b.id} style={[styles.bookmarkCard, isDarkMode && styles.bookmarkCardDark]}>
+                <View style={styles.bookmarkHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="bookmark" size={14} color="#fe932c" />
+                    <Text style={[styles.bookmarkSurahTitle, isDarkMode && { color: '#f8fafc' }]}>
+                      QS. {b.surahLatin} Ayat {b.ayahNumber}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await toggleBookmark(b);
+                      const bms = await getBookmarks();
+                      setBookmarks(bms);
+                    }}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.bookmarkArabic, isDarkMode && { color: '#f8fafc' }]}>{b.teksArab}</Text>
+                <Text style={[styles.bookmarkIndo, isDarkMode && { color: '#cbd5e1' }]}>"{b.teksIndonesia}"</Text>
+
+                <TouchableOpacity
+                  style={styles.openBookmarkBtn}
+                  onPress={() => {
+                    const surah = ALL_SURAHS.find((s) => s.number === b.surahNumber) || ALL_SURAHS[0];
+                    handleOpenSurah(surah, b.ayahNumber);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="book-outline" size={14} color="#ffffff" />
+                  <Text style={styles.openBookmarkBtnText}>Buka Surat & Baca Ayat</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
 
       {/* Surah Reader Modal */}
       <Modal visible={!!selectedSurah} animationType="slide" onRequestClose={handleCloseModal}>
@@ -433,11 +671,42 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
             </TouchableOpacity>
           </View>
 
-          {/* Offline Actions Bar */}
+          {/* Offline Actions Bar & Tajweed Controls */}
           <View style={[styles.offlineControlBar, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
-            <View style={styles.offlineTextPill}>
-              <Ionicons name="checkmark-circle" size={13} color="#059669" />
-              <Text style={styles.offlineTextLabel}>Teks Tersimpan Offline</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.offlineTextPill}>
+                <Ionicons name="checkmark-circle" size={12} color="#059669" />
+                <Text style={styles.offlineTextLabel}>Offline</Text>
+              </View>
+
+              {/* Tajweed Toggle Pill */}
+              <TouchableOpacity
+                style={[
+                  styles.tajweedPill,
+                  isTajweedEnabled && styles.tajweedPillActive,
+                  isDarkMode && { borderColor: '#1e293b' },
+                ]}
+                onPress={() => setIsTajweedEnabled((prev) => !prev)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="color-palette"
+                  size={12}
+                  color={isTajweedEnabled ? '#ffffff' : (isDarkMode ? '#94a3b8' : '#475569')}
+                />
+                <Text style={[styles.tajweedText, isTajweedEnabled && styles.tajweedTextActive]}>
+                  {isTajweedEnabled ? 'Tajwid On' : 'Tajwid Off'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.tajweedHelpBtn}
+                onPress={() => setIsTajweedGuideVisible(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+              >
+                <Ionicons name="help-circle-outline" size={18} color={isDarkMode ? '#34d399' : Colors.primary} />
+              </TouchableOpacity>
             </View>
 
             {/* Audio Surah Offline Status / Download */}
@@ -466,9 +735,9 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <>
-                    <Ionicons name="cloud-download-outline" size={13} color="#ffffff" />
+                    <Ionicons name="cloud-download-outline" size={12} color="#ffffff" />
                     <Text style={styles.downloadAudioBtnText}>
-                      Unduh Audio ({selectedQori?.name?.split(' ')?.[1] || 'Qori'})
+                      Unduh Audio
                     </Text>
                   </>
                 )}
@@ -501,6 +770,15 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
               {/* Ayah Cards */}
               {surahDetail?.ayat?.map((ayah) => {
                 const isThisAyahPlaying = playingAyahNumber === ayah.nomorAyat;
+                const isBookmarked = bookmarks.some(
+                  (b) =>
+                    Number(b.surahNumber) === Number(selectedSurah?.number) &&
+                    Number(b.ayahNumber) === Number(ayah.nomorAyat)
+                );
+                const isLastReadAyah =
+                  Number(lastRead?.surahNumber) === Number(selectedSurah?.number) &&
+                  Number(lastRead?.ayahNumber) === Number(ayah.nomorAyat);
+
                 return (
                   <View
                     key={ayah.nomorAyat}
@@ -508,20 +786,71 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                       styles.ayahCard,
                       isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' },
                       isThisAyahPlaying && styles.ayahCardPlaying,
+                      isLastReadAyah && styles.ayahCardLastRead,
                     ]}
                   >
-                    {/* Ayah Number Header */}
+                    {/* Ayah Header */}
                     <View style={styles.ayahHeader}>
-                      <View style={[styles.ayahNumberBadge, isDarkMode && { backgroundColor: '#1e293b' }]}>
-                        <Text style={[styles.ayahNumberText, isDarkMode && { color: '#34d399' }]}>{ayah.nomorAyat}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={[styles.ayahNumberBadge, isDarkMode && { backgroundColor: '#1e293b' }]}>
+                          <Text style={[styles.ayahNumberText, isDarkMode && { color: '#34d399' }]}>
+                            {ayah.nomorAyat}
+                          </Text>
+                        </View>
+                        {isLastReadAyah && (
+                          <View style={styles.lastReadMarkerBadge}>
+                            <Ionicons name="bookmark" size={10} color="#059669" />
+                            <Text style={styles.lastReadMarkerText}>Terakhir Dibaca</Text>
+                          </View>
+                        )}
                       </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {/* Tafsir Button */}
+                        <TouchableOpacity
+                          onPress={() => handleOpenTafsir(ayah)}
+                          style={[styles.ayahTafsirBtn, isDarkMode && styles.ayahTafsirBtnDark]}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="book-outline" size={12} color={isDarkMode ? '#34d399' : Colors.primary} />
+                          <Text style={[styles.ayahTafsirText, isDarkMode && { color: '#34d399' }]}>Tafsir</Text>
+                        </TouchableOpacity>
+
+                        {/* Bookmark Button */}
+                        <TouchableOpacity
+                          onPress={() => handleToggleAyahBookmark(ayah)}
+                          style={styles.ayahActionBtn}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                        >
+                          <Ionicons
+                            name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+                            size={18}
+                            color={isBookmarked ? '#fe932c' : (isDarkMode ? '#94a3b8' : '#6f7975')}
+                          />
+                        </TouchableOpacity>
+
+                        {/* Set As Last Read Button */}
+                        <TouchableOpacity
+                          onPress={() => handleSetLastRead(ayah)}
+                          style={styles.ayahActionBtn}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                        >
+                          <Ionicons
+                            name={isLastReadAyah ? 'time' : 'time-outline'}
+                            size={18}
+                            color={isLastReadAyah ? '#059669' : (isDarkMode ? '#94a3b8' : '#6f7975')}
+                          />
+                        </TouchableOpacity>
+
                         {/* Download / Offline Ayah Audio Button */}
                         <TouchableOpacity
                           onPress={() => handleToggleDownloadAyah(ayah)}
                           style={styles.ayahDownloadBtn}
                           activeOpacity={0.7}
                           disabled={downloadingAyahNum === ayah.nomorAyat}
+                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                         >
                           {downloadingAyahNum === ayah.nomorAyat ? (
                             <ActivityIndicator size="small" color="#059669" />
@@ -534,6 +863,7 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                           )}
                         </TouchableOpacity>
 
+                        {/* Play Ayah Audio */}
                         <TouchableOpacity
                           onPress={() => handlePlayAyahAudio(ayah)}
                           style={[styles.ayahActionBtn, isThisAyahPlaying && styles.ayahActionBtnActive]}
@@ -545,18 +875,28 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                             color={isThisAyahPlaying ? '#dc2626' : (isDarkMode ? '#34d399' : Colors.primary)}
                           />
                         </TouchableOpacity>
+
+                        {/* Share Ayah */}
                         <TouchableOpacity
                           onPress={() => handleShareAyah(ayah)}
                           style={styles.ayahActionBtn}
                           activeOpacity={0.8}
                         >
-                          <MaterialCommunityIcons name="share-variant-outline" size={18} color={isDarkMode ? '#94a3b8' : '#6f7975'} />
+                          <MaterialCommunityIcons
+                            name="share-variant-outline"
+                            size={18}
+                            color={isDarkMode ? '#94a3b8' : '#6f7975'}
+                          />
                         </TouchableOpacity>
                       </View>
                     </View>
 
-                    {/* Arabic text */}
-                    <Text style={[styles.ayahArabic, isDarkMode && { color: '#f8fafc' }]}>{ayah.teksArab}</Text>
+                    {/* Arabic text with Color-Coded Tajweed */}
+                    {renderTajweedArabic(
+                      ayah.teksArab,
+                      [styles.ayahArabic, isDarkMode && { color: '#f8fafc' }],
+                      isTajweedEnabled
+                    )}
 
                     {/* Latin Transliteration */}
                     {!!ayah.teksLatin && (
@@ -570,6 +910,122 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
               })}
             </ScrollView>
           )}
+        </View>
+      </Modal>
+
+      {/* Modal Tafsir Kemenag RI */}
+      <Modal
+        visible={isTafsirModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsTafsirModalVisible(false)}
+      >
+        <View style={styles.tafsirModalBackdrop}>
+          <View style={[styles.tafsirModalCard, isDarkMode && styles.tafsirModalCardDark]}>
+            <View style={styles.tafsirHeaderRow}>
+              <View>
+                <View style={styles.tafsirBadge}>
+                  <Text style={styles.tafsirBadgeText}>TAFSIR KEMENAG RI</Text>
+                </View>
+                <Text style={[styles.tafsirSurahTitle, isDarkMode && { color: '#f8fafc' }]}>
+                  QS. {selectedTafsirAyah?.surahLatin} Ayat {selectedTafsirAyah?.ayahNumber}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsTafsirModalVisible(false)}
+                style={styles.tafsirCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={isDarkMode ? '#94a3b8' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.tafsirScroll} showsVerticalScrollIndicator={false}>
+              {/* Teks Arab & Terjemahan Ringkas */}
+              <View style={[styles.tafsirAyatBox, isDarkMode && styles.tafsirAyatBoxDark]}>
+                <Text style={[styles.tafsirArabic, isDarkMode && { color: '#34d399' }]}>
+                  {selectedTafsirAyah?.teksArab}
+                </Text>
+                <Text style={[styles.tafsirIndo, isDarkMode && { color: '#cbd5e1' }]}>
+                  "{selectedTafsirAyah?.teksIndonesia}"
+                </Text>
+              </View>
+
+              {/* Isi Tafsir Lengkap */}
+              <View style={styles.tafsirBodyBox}>
+                <Text style={[styles.tafsirBodyTitle, isDarkMode && { color: '#34d399' }]}>
+                  Penjelasan & Tafsir Ayat
+                </Text>
+
+                {isLoadingTafsir ? (
+                  <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
+                      Mengambil tafsir lengkap dari Kemenag RI...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.tafsirBodyText, isDarkMode && styles.tafsirBodyTextDark]}>
+                    {selectedTafsirAyah?.tafsirTeks ||
+                      'Tafsir untuk ayat ini sedang dipersiapkan atau dapat dibaca langsung dengan menyambungkan koneksi internet.'}
+                  </Text>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Panduan Warna Tajwid */}
+      <Modal
+        visible={isTajweedGuideVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsTajweedGuideVisible(false)}
+      >
+        <View style={styles.tajweedModalBackdrop}>
+          <View style={[styles.tajweedModalCard, isDarkMode && styles.tajweedModalCardDark]}>
+            <View style={styles.tajweedHeaderRow}>
+              <View>
+                <Text style={[styles.tajweedModalTitle, isDarkMode && { color: '#f8fafc' }]}>
+                  Panduan Warna Tajwid
+                </Text>
+                <Text style={[styles.tajweedModalSub, isDarkMode && { color: '#94a3b8' }]}>
+                  Standar Pewarnaan Mushaf Tajwid Noor
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsTajweedGuideVisible(false)}
+                style={styles.tafsirCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={isDarkMode ? '#94a3b8' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.tajweedList} showsVerticalScrollIndicator={false}>
+              {TAJWEED_LEGEND.map((item, idx) => (
+                <View key={idx} style={[styles.tajweedItem, isDarkMode && styles.tajweedItemDark]}>
+                  <View style={[styles.tajweedColorDot, { backgroundColor: item.color }]} />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.tajweedItemName, { color: item.color }]}>{item.name}</Text>
+                      <Text style={[styles.tajweedItemExample, isDarkMode && { color: '#34d399' }]}>
+                        {item.example}
+                      </Text>
+                    </View>
+                    <Text style={[styles.tajweedItemRule, isDarkMode && { color: '#94a3b8' }]}>{item.rule}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.tajweedCloseBtn}
+              onPress={() => setIsTajweedGuideVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.tajweedCloseBtnText}>Tutup Panduan</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </View>
@@ -877,5 +1333,418 @@ const styles = StyleSheet.create({
   },
   ayahDownloadBtn: {
     padding: 3,
+  },
+  // Last Read Banner Styles
+  lastReadCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  lastReadCardDark: {
+    backgroundColor: '#064e3b30',
+    borderColor: '#065f46',
+  },
+  lastReadLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  lastReadIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lastReadBadge: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#059669',
+    letterSpacing: 0.8,
+  },
+  lastReadSurahName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#002721',
+    marginTop: 1,
+  },
+  lastReadAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  lastReadActionText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#059669',
+  },
+
+  // Tab Switcher Styles
+  quranTabSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f3',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 10,
+    marginTop: 2,
+  },
+  quranTabSwitcherDark: {
+    backgroundColor: '#152232',
+  },
+  quranTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 9,
+    gap: 6,
+  },
+  quranTabBtnActive: {
+    backgroundColor: '#002721',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  quranTabBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#6f7975',
+  },
+  quranTabBtnTextActive: {
+    color: '#ffffff',
+  },
+
+  // Bookmarks Tab Styles
+  emptyBookmarksBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 30,
+  },
+  emptyBookmarksTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#191c1b',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  emptyBookmarksDesc: {
+    fontSize: 12.5,
+    color: '#6f7975',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  bookmarkCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  bookmarkCardDark: {
+    backgroundColor: '#131e2c',
+    borderColor: '#223447',
+  },
+  bookmarkHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  bookmarkSurahTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#002721',
+  },
+  bookmarkArabic: {
+    fontSize: 19,
+    color: '#191c1b',
+    textAlign: 'right',
+    lineHeight: 34,
+    fontFamily: 'serif',
+    marginBottom: 8,
+  },
+  bookmarkIndo: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  openBookmarkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#059669',
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  openBookmarkBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+
+  // Reader Ayah Extras (Last Read marker & Tafsir)
+  ayahCardLastRead: {
+    borderColor: '#059669',
+    borderWidth: 1.5,
+  },
+  lastReadMarkerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  lastReadMarkerText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  ayahTafsirBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#f1f5f3',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+  },
+  ayahTafsirBtnDark: {
+    backgroundColor: '#1e293b',
+  },
+  ayahTafsirText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+
+  // Tajweed Toolbar Pill
+  tajweedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f1f5f3',
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  tajweedPillActive: {
+    backgroundColor: '#002721',
+    borderColor: '#002721',
+  },
+  tajweedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  tajweedTextActive: {
+    color: '#ffffff',
+  },
+  tajweedHelpBtn: {
+    padding: 2,
+  },
+
+  // Tafsir Modal Styles
+  tafsirModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  tafsirModalCard: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    maxHeight: '82%',
+  },
+  tafsirModalCardDark: {
+    backgroundColor: '#0d1620',
+  },
+  tafsirHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f3',
+  },
+  tafsirBadge: {
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  tafsirBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#059669',
+    letterSpacing: 0.5,
+  },
+  tafsirSurahTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#002721',
+  },
+  tafsirCloseBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f3',
+  },
+  tafsirScroll: {
+    marginTop: 12,
+  },
+  tafsirAyatBox: {
+    backgroundColor: '#f8faf9',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  tafsirAyatBoxDark: {
+    backgroundColor: '#131e2c',
+    borderColor: '#223447',
+  },
+  tafsirArabic: {
+    fontSize: 20,
+    color: '#002721',
+    textAlign: 'right',
+    lineHeight: 36,
+    fontFamily: 'serif',
+    marginBottom: 8,
+  },
+  tafsirIndo: {
+    fontSize: 12.5,
+    color: '#475569',
+    lineHeight: 19,
+    fontStyle: 'italic',
+  },
+  tafsirBodyBox: {
+    marginBottom: 20,
+  },
+  tafsirBodyTitle: {
+    fontSize: 13.5,
+    fontWeight: 'bold',
+    color: '#002721',
+    marginBottom: 8,
+  },
+  tafsirBodyText: {
+    fontSize: 13,
+    color: '#1f2937',
+    lineHeight: 22,
+    textAlign: 'justify',
+  },
+  tafsirBodyTextDark: {
+    color: '#cbd5e1',
+  },
+
+  // Tajweed Guide Modal Styles
+  tajweedModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  tajweedModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 20,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  tajweedModalCardDark: {
+    backgroundColor: '#0d1620',
+  },
+  tajweedHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  tajweedModalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#002721',
+  },
+  tajweedModalSub: {
+    fontSize: 11.5,
+    color: '#6f7975',
+    marginTop: 2,
+  },
+  tajweedList: {
+    marginVertical: 4,
+  },
+  tajweedItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f3',
+  },
+  tajweedItemDark: {
+    borderBottomColor: '#1e293b',
+  },
+  tajweedColorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginTop: 3,
+  },
+  tajweedItemName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  tajweedItemRule: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  tajweedItemExample: {
+    fontSize: 15,
+    fontFamily: 'serif',
+    color: '#002721',
+  },
+  tajweedCloseBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  tajweedCloseBtnText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
 });

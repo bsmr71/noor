@@ -299,3 +299,91 @@ export async function downloadAyahAudio(surahNumber, ayahNumber, qoriId = 'alafa
   throw new Error('Gagal mengunduh audio ayat');
 }
 
+// -------------------------------------------------------------
+// 4. CACHE TAFSIR RESMI KEMENAG RI
+// -------------------------------------------------------------
+
+export async function cacheSurahTafsir(surahNumber, tafsirData) {
+  if (!surahNumber || !tafsirData) return;
+  try {
+    await AsyncStorage.setItem(`@noor_tafsir_${surahNumber}`, JSON.stringify(tafsirData));
+  } catch (e) {}
+}
+
+export async function getCachedSurahTafsir(surahNumber) {
+  try {
+    const raw = await AsyncStorage.getItem(`@noor_tafsir_${surahNumber}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+
+// -------------------------------------------------------------
+// 5. RIWAYAT TERAKHIR BACA & PENANDA AYAT (BOOKMARKS)
+// -------------------------------------------------------------
+
+export async function saveLastRead(surahNumber, surahLatin, ayahNumber, totalAyah = 7) {
+  try {
+    const data = {
+      surahNumber: Number(surahNumber),
+      surahLatin,
+      ayahNumber: Number(ayahNumber),
+      totalAyah: Number(totalAyah),
+      timestamp: Date.now(),
+    };
+    await AsyncStorage.setItem('@noor_last_read', JSON.stringify(data));
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function getLastRead() {
+  try {
+    const raw = await AsyncStorage.getItem('@noor_last_read');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+
+export async function getBookmarks() {
+  try {
+    const raw = await AsyncStorage.getItem('@noor_quran_bookmarks');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return [];
+}
+
+export async function toggleBookmark(bookmarkItem) {
+  try {
+    const bookmarks = await getBookmarks();
+    const sNum = Number(bookmarkItem.surahNumber);
+    const aNum = Number(bookmarkItem.ayahNumber);
+    const id = `${sNum}:${aNum}`;
+    const exists = bookmarks.some((b) => `${Number(b.surahNumber)}:${Number(b.ayahNumber)}` === id);
+
+    let next;
+    if (exists) {
+      next = bookmarks.filter((b) => `${Number(b.surahNumber)}:${Number(b.ayahNumber)}` !== id);
+    } else {
+      next = [
+        {
+          id,
+          surahNumber: sNum,
+          surahLatin: bookmarkItem.surahLatin,
+          ayahNumber: aNum,
+          teksArab: bookmarkItem.teksArab,
+          teksIndonesia: bookmarkItem.teksIndonesia,
+          createdAt: Date.now(),
+        },
+        ...bookmarks,
+      ];
+    }
+    await AsyncStorage.setItem('@noor_quran_bookmarks', JSON.stringify(next));
+    return !exists;
+  } catch (e) {
+    return false;
+  }
+}
+
+
