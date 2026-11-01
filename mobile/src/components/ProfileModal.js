@@ -47,8 +47,15 @@ export default function ProfileModal({
   onToggleStatusBarCountdown,
   isDarkMode = false,
   onToggleDarkMode,
+  initialTab = 'profil',
 }) {
-  const [activeTab, setActiveTab] = useState('profil'); // 'profil', 'qori', 'muadzin', 'setelan'
+  const [activeTab, setActiveTab] = useState(initialTab || 'profil'); // 'profil', 'qori', 'muadzin', 'setelan'
+
+  useEffect(() => {
+    if (visible && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [visible, initialTab]);
   const [name, setName] = useState(userProfile?.name || 'Hamba Allah');
   const [email, setEmail] = useState(userProfile?.email || 'bismillah@noor.app');
   const [bio, setBio] = useState(userProfile?.bio || 'Senantiasa berikhtiar istiqomah dalam tilawah & doa.');
@@ -654,103 +661,83 @@ export default function ProfileModal({
               </View>
             )}
 
-            {/* TAB 3: PILIHAN MUADZIN */}
+            {/* TAB 3: PILIHAN MUADZIN (SUARA PEMBERITAHUAN) */}
             {activeTab === 'muadzin' && (
               <View style={{ gap: 10 }}>
-                <Text style={styles.tabHeading}>Pilih Muadzin Panggilan Sholat</Text>
-                <Text style={styles.tabSubheading}>
-                  Lantunan adzan merdu dari Masjidil Haram, Nabawi, Al-Aqsha, & Nusantara
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <View>
+                    <Text style={styles.tabHeading}>Suara Pemberitahuan</Text>
+                    <Text style={styles.tabSubheading}>
+                      Pilih lantunan adzan favorit untuk waktu sholat Anda
+                    </Text>
+                  </View>
+                  <View style={styles.offlineAllBadge}>
+                    <Ionicons name="checkmark-done" size={13} color="#059669" />
+                    <Text style={styles.offlineAllText}>Semua Offline</Text>
+                  </View>
+                </View>
 
                 {MUADZIN_LIST.map((m) => {
                   const isSelected = selectedMuadzin?.id === m.id;
                   const isPlaying = previewingId === m.id;
 
                   return (
-                    <View
+                    <TouchableOpacity
                       key={m.id}
-                      style={[styles.reciterCard, isSelected && styles.reciterCardSelected]}
+                      style={[
+                        styles.adhanRowCard,
+                        isSelected && styles.adhanRowCardSelected,
+                        isPlaying && styles.adhanRowCardPlaying,
+                      ]}
+                      onPress={() => onSelectMuadzin(m)}
+                      activeOpacity={0.8}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <Image source={{ uri: m.avatar }} style={styles.reciterAvatar} />
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={styles.reciterName}>{m.name}</Text>
-                            <View style={styles.reciterBadge}>
-                              <Text style={styles.reciterBadgeText}>{m.badge}</Text>
-                            </View>
-                            {m.id === 'mulla' ? (
-                              <View style={styles.offlineBundledBadge}>
-                                <Ionicons name="checkmark-circle" size={11} color="#059669" />
-                                <Text style={styles.offlineBundledText}>Bawaan Offline</Text>
-                              </View>
-                            ) : downloadedMuadzins[m.id] ? (
-                              <View style={styles.offlineDownloadedBadge}>
-                                <Ionicons name="cloud-done" size={11} color="#059669" />
-                                <Text style={styles.offlineDownloadedText}>Offline</Text>
-                              </View>
-                            ) : null}
-                          </View>
-                          <Text style={styles.reciterArabic}>{m.arabicName}</Text>
-                          <Text style={styles.reciterStyle}>{m.title}</Text>
-                        </View>
+                      {/* Flag circle */}
+                      <View style={[styles.adhanFlagCircle, isSelected && styles.adhanFlagCircleSelected]}>
+                        <Text style={styles.adhanFlagEmoji}>{m.flag || '🕌'}</Text>
                       </View>
 
-                      {/* Actions */}
-                      <View style={styles.reciterActionsRow}>
+                      {/* Content */}
+                      <View style={{ flex: 1, paddingVertical: 2 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={[styles.adhanNameText, isSelected && styles.adhanNameTextSelected]}>
+                            {m.name}
+                          </Text>
+                          {m.badge === 'Khusus Subuh' && (
+                            <View style={styles.fajrBadge}>
+                              <Text style={styles.fajrBadgeText}>Subuh</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.adhanCountryText, isSelected && styles.adhanCountryTextSelected]}>
+                          {m.country || m.origin}
+                        </Text>
+                      </View>
+
+                      {/* Action & selection */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <TouchableOpacity
-                          style={[styles.sampleBtn, isPlaying && styles.sampleBtnPlaying]}
+                          style={[styles.adhanPlayPill, isPlaying && styles.adhanPlayPillActive]}
                           onPress={() => handlePlayPreview(m.id, m.audioUrl, m)}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                         >
                           <MaterialCommunityIcons
                             name={isPlaying ? 'pause' : 'volume-high'}
-                            size={16}
-                            color={isPlaying ? '#ffffff' : Colors.primary}
+                            size={18}
+                            color={isPlaying ? '#ffffff' : (isSelected ? '#059669' : '#002721')}
                           />
-                          <Text style={[styles.sampleBtnText, isPlaying && { color: '#ffffff' }]}>
-                            {isPlaying ? 'Jeda' : 'Dengar Adzan'}
-                          </Text>
                         </TouchableOpacity>
 
-                        {/* Offline Download / Delete Button */}
-                        {m.id !== 'mulla' && (
-                          downloadedMuadzins[m.id] ? (
-                            <TouchableOpacity
-                              style={styles.deleteOfflineBtn}
-                              onPress={() => handleDeleteMuadzin(m)}
-                              activeOpacity={0.7}
-                            >
-                              <Ionicons name="trash-outline" size={15} color="#dc2626" />
-                            </TouchableOpacity>
-                          ) : (
-                            <TouchableOpacity
-                              style={styles.downloadOfflineBtn}
-                              onPress={() => handleDownloadMuadzin(m)}
-                              disabled={downloadingMuadzinId === m.id}
-                              activeOpacity={0.7}
-                            >
-                              {downloadingMuadzinId === m.id ? (
-                                <ActivityIndicator size="small" color="#059669" />
-                              ) : (
-                                <>
-                                  <Ionicons name="cloud-download-outline" size={13} color="#059669" />
-                                  <Text style={styles.downloadOfflineText}>Unduh Offline</Text>
-                                </>
-                              )}
-                            </TouchableOpacity>
-                          )
+                        {isSelected ? (
+                          <View style={styles.adhanSelectedRadio}>
+                            <Ionicons name="checkmark" size={13} color="#ffffff" />
+                          </View>
+                        ) : (
+                          <View style={styles.adhanUnselectedRadio} />
                         )}
-
-                        <TouchableOpacity
-                          style={[styles.selectBtn, isSelected && styles.selectBtnActive]}
-                          onPress={() => onSelectMuadzin(m)}
-                        >
-                          <Text style={[styles.selectBtnText, isSelected && styles.selectBtnTextActive]}>
-                            {isSelected ? '✓ Aktif' : 'Pilih'}
-                          </Text>
-                        </TouchableOpacity>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -1347,6 +1334,116 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6f7975',
     marginTop: 2,
+  },
+  // Suara Pemberitahuan (Adhan Notification Style)
+  offlineAllBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  offlineAllText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  adhanRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  adhanRowCardSelected: {
+    borderColor: '#059669',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1.5,
+  },
+  adhanRowCardPlaying: {
+    borderColor: '#fe932c',
+    backgroundColor: '#fffbeb',
+  },
+  adhanFlagCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f8faf9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8e5',
+  },
+  adhanFlagCircleSelected: {
+    borderColor: '#a7f3d0',
+    backgroundColor: '#ecfdf5',
+  },
+  adhanFlagEmoji: {
+    fontSize: 22,
+  },
+  adhanNameText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#191c1b',
+  },
+  adhanNameTextSelected: {
+    color: '#065f46',
+  },
+  adhanCountryText: {
+    fontSize: 11.5,
+    color: '#6f7975',
+    marginTop: 2,
+  },
+  adhanCountryTextSelected: {
+    color: '#047857',
+  },
+  fajrBadge: {
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#fde68a',
+  },
+  fajrBadgeText: {
+    fontSize: 9.5,
+    fontWeight: 'bold',
+    color: '#d97706',
+  },
+  adhanPlayPill: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#f1f5f3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adhanPlayPillActive: {
+    backgroundColor: '#fe932c',
+  },
+  adhanSelectedRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adhanUnselectedRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
   },
 });
 

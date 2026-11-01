@@ -191,13 +191,19 @@ export default function AdzanModal({
 
             {/* Muadzin Info */}
             <View style={styles.muadzinPill}>
-              <Image source={{ uri: muadzinAvatar }} style={styles.muadzinThumb} />
+              {selectedMuadzin?.flag ? (
+                <View style={styles.muadzinFlagCircle}>
+                  <Text style={{ fontSize: 18 }}>{selectedMuadzin.flag}</Text>
+                </View>
+              ) : (
+                <Image source={{ uri: muadzinAvatar }} style={styles.muadzinThumb} />
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.muadzinName} numberOfLines={1}>
                   {muadzinName}
                 </Text>
                 <Text style={styles.muadzinTitle} numberOfLines={1}>
-                  {muadzinTitle}
+                  {selectedMuadzin?.country ? `${selectedMuadzin.country} • ${muadzinTitle}` : muadzinTitle}
                 </Text>
               </View>
               <TouchableOpacity
@@ -417,6 +423,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#fe932c',
+  },
+  muadzinFlagCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#fe932c',
   },

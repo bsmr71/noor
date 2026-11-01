@@ -17,7 +17,7 @@ import { Colors } from '../theme/colors';
 import { ALL_SURAHS, getSurahAudioUrl, getAyahAudioUrl } from '../data/surahList';
 import { SAMPLE_SURAHS_DETAIL } from '../data/sampleSurahData';
 import { playAudioUrl, stopCurrentAudio } from '../utils/audioPlayerService';
-import { renderTajweedArabic, TAJWEED_LEGEND } from '../utils/tajweedParser';
+import { renderTajweedArabic, getAyahTajweedRules, TAJWEED_LEGEND } from '../utils/tajweedParser';
 import {
   cacheSurahText,
   getCachedSurahText,
@@ -99,12 +99,6 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
     });
     const bms = await getBookmarks();
     setBookmarks(bms);
-    Alert.alert(
-      isNowBookmarked ? 'Ayat Ditandai' : 'Tanda Dihapus',
-      isNowBookmarked
-        ? `QS. ${selectedSurah.latin} ayat ${ayah.nomorAyat} berhasil disimpan di daftar Ayat Ditandai.`
-        : `Tanda pada QS. ${selectedSurah.latin} ayat ${ayah.nomorAyat} telah dihapus.`
-    );
   };
 
   const loadSurahTafsir = async (surahNumber) => {
@@ -448,7 +442,7 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
   const handleShareAyah = (ayah) => {
     if (!selectedSurah) return;
     const shareText = `QS. ${selectedSurah.latin} [${selectedSurah.number}:${ayah.nomorAyat}]:\n\n${ayah.teksArab}\n\n"${ayah.teksIndonesia}"\n\nDibagikan melalui Aplikasi Noor (Muslim Pro).`;
-    Share.share({ message: shareText }).catch(() => {});
+    Share.share({ message: shareText }).catch(() => { });
   };
 
   const handleCloseModal = () => {
@@ -633,7 +627,7 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="book-outline" size={14} color="#ffffff" />
+                  <Ionicons name="book-open-outline" size={14} color="#ffffff" />
                   <Text style={styles.openBookmarkBtnText}>Buka Surat & Baca Ayat</Text>
                 </TouchableOpacity>
               </View>
@@ -703,9 +697,8 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                 style={styles.tajweedHelpBtn}
                 onPress={() => setIsTajweedGuideVisible(true)}
                 activeOpacity={0.7}
-                hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
               >
-                <Ionicons name="help-circle-outline" size={18} color={isDarkMode ? '#34d399' : Colors.primary} />
+                <Ionicons name="help-circle-outline" size={17} color={isDarkMode ? '#34d399' : Colors.primary} />
               </TouchableOpacity>
             </View>
 
@@ -771,13 +764,10 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
               {surahDetail?.ayat?.map((ayah) => {
                 const isThisAyahPlaying = playingAyahNumber === ayah.nomorAyat;
                 const isBookmarked = bookmarks.some(
-                  (b) =>
-                    Number(b.surahNumber) === Number(selectedSurah?.number) &&
-                    Number(b.ayahNumber) === Number(ayah.nomorAyat)
+                  (b) => b.surahNumber === selectedSurah?.number && b.ayahNumber === ayah.nomorAyat
                 );
                 const isLastReadAyah =
-                  Number(lastRead?.surahNumber) === Number(selectedSurah?.number) &&
-                  Number(lastRead?.ayahNumber) === Number(ayah.nomorAyat);
+                  lastRead?.surahNumber === selectedSurah?.number && lastRead?.ayahNumber === ayah.nomorAyat;
 
                 return (
                   <View
@@ -821,7 +811,6 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                           onPress={() => handleToggleAyahBookmark(ayah)}
                           style={styles.ayahActionBtn}
                           activeOpacity={0.7}
-                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                         >
                           <Ionicons
                             name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
@@ -835,7 +824,6 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                           onPress={() => handleSetLastRead(ayah)}
                           style={styles.ayahActionBtn}
                           activeOpacity={0.7}
-                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                         >
                           <Ionicons
                             name={isLastReadAyah ? 'time' : 'time-outline'}
@@ -850,7 +838,6 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                           style={styles.ayahDownloadBtn}
                           activeOpacity={0.7}
                           disabled={downloadingAyahNum === ayah.nomorAyat}
-                          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                         >
                           {downloadingAyahNum === ayah.nomorAyat ? (
                             <ActivityIndicator size="small" color="#059669" />
@@ -896,6 +883,29 @@ export default function QuranScreen({ selectedQori, isDarkMode = false }) {
                       ayah.teksArab,
                       [styles.ayahArabic, isDarkMode && { color: '#f8fafc' }],
                       isTajweedEnabled
+                    )}
+
+                    {/* Tajweed Rules Summary Pills */}
+                    {isTajweedEnabled && getAyahTajweedRules(ayah.teksArab).length > 0 && (
+                      <View style={styles.tajweedPillsContainer}>
+                        {getAyahTajweedRules(ayah.teksArab).map((rule, rIdx) => (
+                          <View
+                            key={`rule_${rIdx}`}
+                            style={[
+                              styles.tajweedPill,
+                              {
+                                borderColor: rule.color + '45',
+                                backgroundColor: isDarkMode ? rule.color + '18' : rule.color + '10',
+                              },
+                            ]}
+                          >
+                            <View style={[styles.tajweedPillDot, { backgroundColor: rule.color }]} />
+                            <Text style={[styles.tajweedPillName, { color: rule.color }]}>
+                              {rule.name}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
                     )}
 
                     {/* Latin Transliteration */}
@@ -1746,5 +1756,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  tajweedPillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  tajweedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  tajweedPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  tajweedPillName: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

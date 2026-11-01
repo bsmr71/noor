@@ -10,6 +10,21 @@ const QURAN_DIR = `${BASE_DIR}quran/`;
 // Bundled default adzan asset
 export const BUNDLED_DEFAULT_ADZAN = require('../../assets/audio/adzan_default.mp3');
 
+// Map seluruh audio adzan bawaan offline
+export const BUNDLED_ADZAN_MAP = {
+  mulla: require('../../assets/audio/adzan_default.mp3'),
+  palestina: require('../../assets/audio/adhan_palestina.mp3'),
+  fakhrul_unic: require('../../assets/audio/adhan_fakhrul_unic.mp3'),
+  muzammil: require('../../assets/audio/adhan_muzammil.mp3'),
+  muzammil_fajr: require('../../assets/audio/adhan_fajr_muzammil.mp3'),
+  salim_bahanan_fajr: require('../../assets/audio/adhan_fajr_salim_bahanan.mp3'),
+  salim_bahanan: require('../../assets/audio/adhan_salim_bahanan.mp3'),
+  syam_elmarusy_fajr: require('../../assets/audio/adhan_fajr_syam_elmarusy.mp3'),
+  syam_elmarusy: require('../../assets/audio/adhan_syam_elmarusy.mp3'),
+  mohamed_kalipha: require('../../assets/audio/adhan_mohamed_kalipha.mp3'),
+  zeeshan_yekin: require('../../assets/audio/adhan_zeeshan_yekin.mp3'),
+};
+
 /**
  * Pastikan seluruh direktori penyimpanan offline sudah siap
  */
@@ -35,8 +50,8 @@ export async function initOfflineDirectories() {
  * Cek apakah muadzin tersedia secara offline
  */
 export async function isMuadzinOffline(muadzinId) {
-  // Default muadzin Syaikh Ali Ahmed Mulla langsung terunduh/bundled bawaan
-  if (muadzinId === 'mulla') return true;
+  // Seluruh adzan yang dibundled langsung tersedia offline tanpa unduh
+  if (BUNDLED_ADZAN_MAP[muadzinId]) return true;
 
   try {
     const fileUri = `${MUADZIN_DIR}${muadzinId}.mp3`;
@@ -52,8 +67,8 @@ export async function isMuadzinOffline(muadzinId) {
  */
 export async function getMuadzinAudioSource(muadzin) {
   if (!muadzin) return BUNDLED_DEFAULT_ADZAN;
-  if (muadzin.id === 'mulla') {
-    return BUNDLED_DEFAULT_ADZAN;
+  if (BUNDLED_ADZAN_MAP[muadzin.id]) {
+    return BUNDLED_ADZAN_MAP[muadzin.id];
   }
 
   const fileUri = `${MUADZIN_DIR}${muadzin.id}.mp3`;
@@ -64,7 +79,7 @@ export async function getMuadzinAudioSource(muadzin) {
     }
   } catch (e) {}
 
-  return muadzin.audioUrl;
+  return muadzin.audioUrl || BUNDLED_DEFAULT_ADZAN;
 }
 
 /**

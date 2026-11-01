@@ -190,7 +190,7 @@ export default function HomeScreen({
             setCompletedHabitIds(parsed);
             return;
           }
-        } catch (e) {}
+        } catch (e) { }
       }
       // Nilai awal: item pertama default selesai sebagai motivasi
       if (habitSession.habits?.[0]?.id) {
@@ -203,7 +203,7 @@ export default function HomeScreen({
     setCompletedHabitIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       const storageKey = `@noor_habits_${todayDateString}_${habitSession.sessionKey}`;
-      AsyncStorage.setItem(storageKey, JSON.stringify(next)).catch(() => {});
+      AsyncStorage.setItem(storageKey, JSON.stringify(next)).catch(() => { });
       return next;
     });
   };
@@ -270,8 +270,8 @@ export default function HomeScreen({
         onOpenZakatModal
           ? onOpenZakatModal()
           : onOpenDonation
-          ? onOpenDonation({ id: 3, title: 'Zakat Maal & Fitrah Pembersih Harta 1445 H' }, 100000)
-          : Alert.alert('Hitung Zakat', 'Simulasi Zakat Maal & Fitrah otomatis.'),
+            ? onOpenDonation({ id: 3, title: 'Zakat Maal & Fitrah Pembersih Harta 1445 H' }, 100000)
+            : Alert.alert('Hitung Zakat', 'Simulasi Zakat Maal & Fitrah otomatis.'),
     },
     {
       id: 'sholat',
@@ -403,13 +403,9 @@ export default function HomeScreen({
   const userName = userProfile?.isLoggedIn ? userProfile.name.split(' ')[0] : (userProfile?.name || 'Hamba Allah');
 
   return (
-    <ScrollView
-      style={[styles.container, isDarkMode && { backgroundColor: '#070c12' }]}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
       {/* 1. Header Bar */}
-      <View style={[styles.header, isDarkMode && { backgroundColor: '#0d1620', borderBottomColor: '#1e293b' }]}>
+      <View style={styles.header}>
         <View style={styles.headerBrand}>
           <Image
             source={{
@@ -419,8 +415,8 @@ export default function HomeScreen({
             resizeMode="contain"
           />
           <View>
-            <Text style={[styles.brandTitle, isDarkMode && { color: '#34d399' }]}>Noor</Text>
-            <Text style={[styles.brandSubtitle, isDarkMode && { color: '#94a3b8' }]}>Beranda</Text>
+            <Text style={styles.brandTitle}>Noor</Text>
+            <Text style={styles.brandSubtitle}>Beranda</Text>
           </View>
         </View>
 
@@ -537,7 +533,7 @@ export default function HomeScreen({
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Text style={[styles.greetingText, isDarkMode && { color: '#f8fafc' }]}>
+            <Text style={styles.greetingText}>
               Assalamu'alaikum, <Text style={{ color: Colors.secondary }}>{userName}</Text>
             </Text>
             {userProfile?.role === 'admin' ? (
@@ -564,7 +560,7 @@ export default function HomeScreen({
               </TouchableOpacity>
             )}
           </View>
-          <Text style={[styles.spiritualPrompt, isDarkMode && { color: '#94a3b8' }]}>
+          <Text style={styles.spiritualPrompt}>
             {apiPrompt ||
               (isFriday
                 ? '✨ Perbanyak sholawat & tilawah Surah Al-Kahf di hari mulia ini.'
@@ -574,7 +570,7 @@ export default function HomeScreen({
 
         <View style={styles.topIconGroup}>
           <TouchableOpacity
-            style={[styles.topCircleBtn, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
+            style={styles.topCircleBtn}
             activeOpacity={0.8}
             onPress={() => onTestAdzan ? onTestAdzan(prayerStatus.nextPrayer || 'Dzuhur') : Alert.alert('Notifikasi Adzan', 'Pengingat adzan aktif untuk 5 waktu sholat.')}
           >
@@ -852,12 +848,17 @@ export default function HomeScreen({
 
         {/* Adzan Quick Action & Audio Test */}
         <View style={styles.heroAdzanBar}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-            <MaterialCommunityIcons name="volume-high" size={15} color="#fe932c" />
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}
+            onPress={() => onOpenProfileModal && onOpenProfileModal('muadzin')}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 13 }}>{selectedMuadzin?.flag || '🔊'}</Text>
             <Text style={styles.heroAdzanText} numberOfLines={1}>
-              Muadzin: {selectedMuadzin?.name || 'Syaikh Ali Ahmed Mulla'}
+              {selectedMuadzin?.name || 'Syaikh Ali Ahmed Mulla'}
             </Text>
-          </View>
+            <MaterialCommunityIcons name="chevron-right" size={14} color="#94a3b8" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.heroTestAdzanBtn}
             onPress={() => onTestAdzan && onTestAdzan(prayerStatus.nextPrayer || 'Dzuhur')}
@@ -871,187 +872,187 @@ export default function HomeScreen({
 
       {/* 4. FITUR UTAMA: Carousel Slider Banner Iklan & Kemitraan Islami (Otomatis Disembunyikan untuk Member Noor+ Bebas Iklan) */}
       {!userProfile?.is_premium && (
-      <View style={styles.sectionBlock}>
-        <View style={styles.sponsorHeader}>
-          <View style={styles.sponsorTitleRow}>
-            <MaterialCommunityIcons name="check-decagram" size={18} color={Colors.secondary} />
-            <Text style={styles.sponsorSectionTitle}>Kemitraan & Syiar Berkah</Text>
-          </View>
-          <View style={styles.sponsorHeaderRight}>
-            {onOpenPremiumModal && (
-              <TouchableOpacity
-                onPress={onOpenPremiumModal}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: '#fffbeb',
-                  borderWidth: 1,
-                  borderColor: '#f59e0b',
-                  borderRadius: 10,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                }}
-              >
-                <MaterialCommunityIcons name="crown-outline" size={13} color="#b45309" />
-                <Text style={{ fontSize: 10.5, fontWeight: 'bold', color: '#92400e' }}>Hapus Iklan</Text>
-              </TouchableOpacity>
-            )}
-            <Text style={styles.sliderCounterText}>
-              {activeSlide + 1}/{sponsorSlides.length}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setIsEthicsModalVisible(true)}
-              style={styles.infoIconBtn}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="information-outline" size={16} color="#717976" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Horizontal Swipeable Carousel Track */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_WIDTH + 14}
-          decelerationRate="fast"
-          contentContainerStyle={styles.carouselContainer}
-          onScroll={handleScrollCarousel}
-          scrollEventThrottle={16}
-        >
-          {sponsorSlides.map((slide) => (
-            <View key={slide.id} style={[styles.slideCard, { width: CARD_WIDTH }]}>
-              {/* Banner Image with overlay */}
-              <View style={styles.slideImageWrapper}>
-                <Image source={{ uri: slide.image }} style={styles.slideImage} resizeMode="cover" />
-                <View style={styles.imageScrim} />
-
-                {/* Top Badges */}
-                <View style={styles.slideTopBadges}>
-                  <View style={styles.slideTagWhite}>
-                    <MaterialCommunityIcons name="star" size={12} color={Colors.secondary} />
-                    <Text style={styles.slideTagWhiteText}>{slide.tag}</Text>
-                  </View>
-                  <View style={styles.slideTagOrange}>
-                    <Text style={styles.slideTagOrangeText}>{slide.discountBadge}</Text>
-                  </View>
-                </View>
-
-                {/* Bottom title on image */}
-                <View style={styles.slideImageBottomText}>
-                  <View style={styles.verifiedRow}>
-                    <MaterialCommunityIcons name="shield-check" size={12} color="#bdece0" />
-                    <Text style={styles.verifiedText}>{slide.verified}</Text>
-                  </View>
-                  <Text style={styles.slideTitle} numberOfLines={2}>
-                    {slide.title}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Banner Info & Action */}
-              <View style={styles.slideContent}>
-                <View style={styles.slideDetailRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <MaterialCommunityIcons name="airplane-takeoff" size={14} color="#002721" />
-                    <Text style={styles.slideDetailText}>{slide.detail1}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                    <MaterialCommunityIcons name="office-building" size={14} color={Colors.secondary} />
-                    <Text style={styles.slideDetailText}>{slide.detail2}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.slidePriceRow}>
-                  <View>
-                    <Text style={styles.slideOldPrice}>{slide.oldPrice}</Text>
-                    <Text style={styles.slidePrice}>{slide.price}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.slideBtn}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      const t = `${slide.title || ''} ${slide.tag || ''}`.toLowerCase();
-                      if (t.includes('wakaf') || t.includes('sedekah') || t.includes('infaq') || t.includes('donasi') || t.includes('zakat')) {
-                        if (onOpenDonation) {
-                          onOpenDonation({ id: slide.id, title: slide.title }, 50000);
-                        }
-                      } else if (onOpenCatalog) {
-                        const cat = t.includes('umrah') || t.includes('haji')
-                          ? 'umrah'
-                          : t.includes('buku') || t.includes('ensiklopedia') || t.includes('mushaf') || t.includes('literasi')
-                            ? 'buku'
-                            : t.includes('qurban') || t.includes('aqiqah')
-                              ? 'qurban'
-                              : 'all';
-                        onOpenCatalog(cat);
-                      }
-                    }}
-                  >
-                    <Text style={styles.slideBtnText}>{slide.btnText}</Text>
-                    <MaterialCommunityIcons name={slide.btnIcon} size={14} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+        <View style={styles.sectionBlock}>
+          <View style={styles.sponsorHeader}>
+            <View style={styles.sponsorTitleRow}>
+              <MaterialCommunityIcons name="check-decagram" size={18} color={Colors.secondary} />
+              <Text style={styles.sponsorSectionTitle}>Kemitraan & Syiar Berkah</Text>
             </View>
-          ))}
-        </ScrollView>
-
-        {/* Carousel Pagination Dots & Controls */}
-        <View style={styles.carouselBottomRow}>
-          <View style={styles.dotsGroup}>
-            {sponsorSlides.map((_, idx) => (
-              <View
-                key={idx}
-                style={[styles.dot, activeSlide === idx ? styles.dotActive : styles.dotInactive]}
-              />
-            ))}
+            <View style={styles.sponsorHeaderRight}>
+              {onOpenPremiumModal && (
+                <TouchableOpacity
+                  onPress={onOpenPremiumModal}
+                  activeOpacity={0.8}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: '#fffbeb',
+                    borderWidth: 1,
+                    borderColor: '#f59e0b',
+                    borderRadius: 10,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <MaterialCommunityIcons name="crown-outline" size={13} color="#b45309" />
+                  <Text style={{ fontSize: 10.5, fontWeight: 'bold', color: '#92400e' }}>Hapus Iklan</Text>
+                </TouchableOpacity>
+              )}
+              <Text style={styles.sliderCounterText}>
+                {activeSlide + 1}/{sponsorSlides.length}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setIsEthicsModalVisible(true)}
+                style={styles.infoIconBtn}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="information-outline" size={16} color="#717976" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.ethicsLinksRow}>
-            <TouchableOpacity
-              style={styles.ethicsLinkBtn}
-              onPress={() => setIsEthicsModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="scale-balance" size={13} color="#717976" />
-              <Text style={styles.ethicsLinkText}>Transparansi Syariah</Text>
-            </TouchableOpacity>
+          {/* Horizontal Swipeable Carousel Track */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_WIDTH + 14}
+            decelerationRate="fast"
+            contentContainerStyle={styles.carouselContainer}
+            onScroll={handleScrollCarousel}
+            scrollEventThrottle={16}
+          >
+            {sponsorSlides.map((slide) => (
+              <View key={slide.id} style={[styles.slideCard, { width: CARD_WIDTH }]}>
+                {/* Banner Image with overlay */}
+                <View style={styles.slideImageWrapper}>
+                  <Image source={{ uri: slide.image }} style={styles.slideImage} resizeMode="cover" />
+                  <View style={styles.imageScrim} />
 
-            <TouchableOpacity
-              style={styles.ethicsLinkBtn}
-              onPress={() => (onOpenPremiumModal ? onOpenPremiumModal() : setIsEthicsModalVisible(true))}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="eye-off-outline" size={13} color="#92400e" />
-              <Text style={[styles.ethicsLinkText, { color: '#92400e', fontWeight: 'bold' }]}>Sembunyikan Iklan</Text>
-            </TouchableOpacity>
+                  {/* Top Badges */}
+                  <View style={styles.slideTopBadges}>
+                    <View style={styles.slideTagWhite}>
+                      <MaterialCommunityIcons name="star" size={12} color={Colors.secondary} />
+                      <Text style={styles.slideTagWhiteText}>{slide.tag}</Text>
+                    </View>
+                    <View style={styles.slideTagOrange}>
+                      <Text style={styles.slideTagOrangeText}>{slide.discountBadge}</Text>
+                    </View>
+                  </View>
+
+                  {/* Bottom title on image */}
+                  <View style={styles.slideImageBottomText}>
+                    <View style={styles.verifiedRow}>
+                      <MaterialCommunityIcons name="shield-check" size={12} color="#bdece0" />
+                      <Text style={styles.verifiedText}>{slide.verified}</Text>
+                    </View>
+                    <Text style={styles.slideTitle} numberOfLines={2}>
+                      {slide.title}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Banner Info & Action */}
+                <View style={styles.slideContent}>
+                  <View style={styles.slideDetailRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <MaterialCommunityIcons name="airplane-takeoff" size={14} color="#002721" />
+                      <Text style={styles.slideDetailText}>{slide.detail1}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <MaterialCommunityIcons name="office-building" size={14} color={Colors.secondary} />
+                      <Text style={styles.slideDetailText}>{slide.detail2}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.slidePriceRow}>
+                    <View>
+                      <Text style={styles.slideOldPrice}>{slide.oldPrice}</Text>
+                      <Text style={styles.slidePrice}>{slide.price}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.slideBtn}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        const t = `${slide.title || ''} ${slide.tag || ''}`.toLowerCase();
+                        if (t.includes('wakaf') || t.includes('sedekah') || t.includes('infaq') || t.includes('donasi') || t.includes('zakat')) {
+                          if (onOpenDonation) {
+                            onOpenDonation({ id: slide.id, title: slide.title }, 50000);
+                          }
+                        } else if (onOpenCatalog) {
+                          const cat = t.includes('umrah') || t.includes('haji')
+                            ? 'umrah'
+                            : t.includes('buku') || t.includes('ensiklopedia') || t.includes('mushaf') || t.includes('literasi')
+                              ? 'buku'
+                              : t.includes('qurban') || t.includes('aqiqah')
+                                ? 'qurban'
+                                : 'all';
+                          onOpenCatalog(cat);
+                        }
+                      }}
+                    >
+                      <Text style={styles.slideBtnText}>{slide.btnText}</Text>
+                      <MaterialCommunityIcons name={slide.btnIcon} size={14} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Carousel Pagination Dots & Controls */}
+          <View style={styles.carouselBottomRow}>
+            <View style={styles.dotsGroup}>
+              {sponsorSlides.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[styles.dot, activeSlide === idx ? styles.dotActive : styles.dotInactive]}
+                />
+              ))}
+            </View>
+
+            <View style={styles.ethicsLinksRow}>
+              <TouchableOpacity
+                style={styles.ethicsLinkBtn}
+                onPress={() => setIsEthicsModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="scale-balance" size={13} color="#717976" />
+                <Text style={styles.ethicsLinkText}>Transparansi Syariah</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.ethicsLinkBtn}
+                onPress={() => (onOpenPremiumModal ? onOpenPremiumModal() : setIsEthicsModalVisible(true))}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="eye-off-outline" size={13} color="#92400e" />
+                <Text style={[styles.ethicsLinkText, { color: '#92400e', fontWeight: 'bold' }]}>Sembunyikan Iklan</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
       )}
 
       {/* 5. Quick Action Menu Grid (8 Essential Features in 4 cols x 2 rows) */}
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionHeaderTitle, isDarkMode && { color: '#f8fafc' }]}>Fitur Utama Ibadah</Text>
-          <Text style={[styles.sectionHeaderSub, isDarkMode && { color: '#94a3b8' }]}>Lengkap & Praktis</Text>
+          <Text style={styles.sectionHeaderTitle}>Fitur Utama Ibadah</Text>
+          <Text style={styles.sectionHeaderSub}>Lengkap & Praktis</Text>
         </View>
 
         <View style={styles.quickGrid}>
           {quickActions.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={[styles.quickCard, isDarkMode && { backgroundColor: '#131e2c', borderColor: '#223447' }]}
+              style={styles.quickCard}
               activeOpacity={0.8}
               onPress={item.action}
             >
-              <View style={[styles.quickIconBox, { backgroundColor: isDarkMode ? '#1e293b' : item.bgColor }]}>
+              <View style={[styles.quickIconBox, { backgroundColor: item.bgColor }]}>
                 <MaterialCommunityIcons name={item.icon} size={22} color={item.iconColor} />
               </View>
-              <Text style={[styles.quickLabel, isDarkMode && { color: '#f8fafc' }]} numberOfLines={1}>
+              <Text style={styles.quickLabel} numberOfLines={1}>
                 {item.label}
               </Text>
             </TouchableOpacity>

@@ -53,6 +53,7 @@ export default function App() {
   const [currentCity, setCurrentCity] = useState(INDONESIAN_CITIES[0]); // Jakarta
   const [isCityModalVisible, setIsCityModalVisible] = useState(false);
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
+  const [profileInitialTab, setProfileInitialTab] = useState('profil');
   const [isAuthModalVisible, setIsAuthModalVisible] = useState(false);
   const [isDonationModalVisible, setIsDonationModalVisible] = useState(false);
   const [isCalendarModalVisible, setIsCalendarModalVisible] = useState(false);
@@ -112,7 +113,7 @@ export default function App() {
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
-          if (parsed?.audioUrl) setSelectedMuadzin(parsed);
+          if (parsed?.id) setSelectedMuadzin(parsed);
         } catch (e) {}
       }
     });
@@ -260,8 +261,16 @@ export default function App() {
   const handleTriggerAdzan = async (prayerName, prayerKey, prayerTime) => {
     let muadzin = selectedMuadzin || MUADZIN_LIST[0];
     if (prayerKey === 'subuh') {
-      const fajr = MUADZIN_LIST.find((m) => m.id === 'fajr_makkah');
-      muadzin = fajr || muadzin;
+      if (selectedMuadzin?.id === 'muzammil') {
+        muadzin = MUADZIN_LIST.find((m) => m.id === 'muzammil_fajr') || muadzin;
+      } else if (selectedMuadzin?.id === 'salim_bahanan') {
+        muadzin = MUADZIN_LIST.find((m) => m.id === 'salim_bahanan_fajr') || muadzin;
+      } else if (selectedMuadzin?.id === 'syam_elmarusy') {
+        muadzin = MUADZIN_LIST.find((m) => m.id === 'syam_elmarusy_fajr') || muadzin;
+      } else if (!selectedMuadzin?.id?.includes('fajr')) {
+        const fajr = MUADZIN_LIST.find((m) => m.id === 'muzammil_fajr') || MUADZIN_LIST[3];
+        muadzin = fajr || muadzin;
+      }
     }
     const audioSource = await getMuadzinAudioSource(muadzin);
     playAudioUrl(audioSource);
@@ -355,7 +364,10 @@ export default function App() {
             <HomeScreen
               currentCity={currentCity}
               onOpenCityModal={() => setIsCityModalVisible(true)}
-              onOpenProfileModal={() => setIsProfileModalVisible(true)}
+              onOpenProfileModal={(tab = 'profil') => {
+                setProfileInitialTab(tab);
+                setIsProfileModalVisible(true);
+              }}
               onOpenCalendarModal={() => setIsCalendarModalVisible(true)}
               onOpenZakatModal={() => setIsZakatModalVisible(true)}
               onOpenMasjidModal={() => setIsMasjidModalVisible(true)}
@@ -449,6 +461,7 @@ export default function App() {
         {/* Profile & Settings Modal */}
         <ProfileModal
           visible={isProfileModalVisible}
+          initialTab={profileInitialTab}
           onClose={() => setIsProfileModalVisible(false)}
           onOpenAuth={(mode = 'login') => {
             setIsProfileModalVisible(false);
