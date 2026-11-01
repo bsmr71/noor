@@ -36,6 +36,8 @@ export default function ProfileModal({
   onSelectMuadzin,
   adzanReminder: adzanReminderProp = true,
   onToggleAdzanReminder,
+  statusBarCountdown: statusBarCountdownProp = true,
+  onToggleStatusBarCountdown,
 }) {
   const [activeTab, setActiveTab] = useState('profil'); // 'profil', 'qori', 'muadzin', 'setelan'
   const [name, setName] = useState(userProfile?.name || 'Hamba Allah');
@@ -52,10 +54,16 @@ export default function ProfileModal({
   const [showTrans, setShowTrans] = useState(true);
   const [autoPlay, setAutoPlay] = useState(true);
   const [adzanReminder, setAdzanReminder] = useState(adzanReminderProp);
+  const [statusBarCountdown, setStatusBarCountdown] = useState(statusBarCountdownProp);
 
   const handleToggleAdzan = (val) => {
     setAdzanReminder(val);
     if (onToggleAdzanReminder) onToggleAdzanReminder(val);
+  };
+
+  const handleToggleStatusBarCountdown = (val) => {
+    setStatusBarCountdown(val);
+    if (onToggleStatusBarCountdown) onToggleStatusBarCountdown(val);
   };
 
   const stopPreviewAudio = () => {
@@ -698,12 +706,25 @@ export default function ProfileModal({
 
                 <View style={styles.settingRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.settingTitle}>Pengingat 10 Menit Sebelum Adzan</Text>
-                    <Text style={styles.settingDesc}>Pemberitahuan persiapan sholat & wudhu</Text>
+                    <Text style={styles.settingTitle}>Lantunan Suara Adzan Otomatis</Text>
+                    <Text style={styles.settingDesc}>Memperdengarkan adzan saat waktu sholat tiba</Text>
                   </View>
                   <Switch
                     value={adzanReminder}
                     onValueChange={handleToggleAdzan}
+                    trackColor={{ false: '#e2e8e5', true: Colors.primary }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settingTitle}>Hitung Mundur di Status Bar</Text>
+                    <Text style={styles.settingDesc}>Menampilkan berapa menit lagi menuju adzan di status bar HP</Text>
+                  </View>
+                  <Switch
+                    value={statusBarCountdown}
+                    onValueChange={handleToggleStatusBarCountdown}
                     trackColor={{ false: '#e2e8e5', true: Colors.primary }}
                     thumbColor="#ffffff"
                   />

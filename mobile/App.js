@@ -34,6 +34,13 @@ import AdzanModal from './src/components/AdzanModal';
 import { mobileApiClient } from './src/services/apiClient';
 import { useKeyboardVisible } from './src/utils/useKeyboardVisible';
 import { playAudioUrl } from './src/utils/audioPlayerService';
+import { getCurrentPrayerStatus } from './src/utils/prayerCalculator';
+import {
+  requestNotificationPermission,
+  updatePrayerCountdownNotification,
+  triggerAdzanNotification,
+  cancelPrayerCountdownNotification,
+} from './src/services/notificationService';
 
 // Data
 import { INDONESIAN_CITIES } from './src/data/citiesPrayerData';
@@ -106,6 +113,14 @@ export default function App() {
         setAdzanReminder(raw === 'true');
       }
     });
+    AsyncStorage.getItem('noor_mobile_statusbar_countdown').then((raw) => {
+      if (raw !== null) {
+        setStatusBarCountdownEnabled(raw === 'true');
+      }
+    });
+
+    // Request notification permission on Android 13+
+    requestNotificationPermission();
   }, []);
 
   const persistUser = (nextUser) => {
@@ -182,6 +197,7 @@ export default function App() {
   const [selectedQori, setSelectedQori] = useState(QORI_LIST[0]); // Mishary Alafasy
   const [selectedMuadzin, setSelectedMuadzin] = useState(MUADZIN_LIST[0]); // Ali Ahmed Mulla
   const [adzanReminder, setAdzanReminder] = useState(true);
+  const [statusBarCountdownEnabled, setStatusBarCountdownEnabled] = useState(true);
   const [adzanModal, setAdzanModal] = useState({
     visible: false,
     prayerName: 'Dzuhur',
@@ -193,6 +209,17 @@ export default function App() {
   const handleToggleAdzanReminder = (val) => {
     setAdzanReminder(val);
     AsyncStorage.setItem('noor_mobile_adzan_reminder', String(val)).catch(() => {});
+  };
+
+  const handleToggleStatusBarCountdown = (val) => {
+    setStatusBarCountdownEnabled(val);
+    AsyncStorage.setItem('noor_mobile_statusbar_countdown', String(val)).catch(() => {});
+    if (!val) {
+      cancelPrayerCountdownNotification();
+    } else if (currentCity?.timings) {
+      const status = getCurrentPrayerStatus(currentCity.timings, new Date());
+      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', true);
+    }
   };
 
   const handleSelectMuadzin = (muadzin) => {
@@ -218,6 +245,7 @@ export default function App() {
       audioUrl = fajr?.audioUrl || audioUrl;
     }
     playAudioUrl(audioUrl);
+    triggerAdzanNotification(prayerName, currentCity?.name || 'Jakarta', prayerTime);
     setAdzanModal({
       visible: true,
       prayerName,
@@ -226,9 +254,9 @@ export default function App() {
     });
   };
 
-  // Monitor Prayer Times Every 5 Seconds & Sound Adzan Exactly When It Arrives
+  // Monitor Prayer Times & Update Status Bar Countdown Notification
   useEffect(() => {
-    if (!adzanReminder || !currentCity?.timings) return;
+    if (!currentCity?.timings) return;
 
     const checkPrayerTimes = () => {
       const now = new Date();
@@ -236,6 +264,13 @@ export default function App() {
       const currentM = String(now.getMinutes()).padStart(2, '0');
       const currentHHMM = `${currentH}:${currentM}`;
       const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+      // 1. Update status bar countdown notification
+      const status = getCurrentPrayerStatus(currentCity.timings, now);
+      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', statusBarCountdownEnabled);
+
+      // 2. Check Adzan Arrival
+      if (!adzanReminder) return;
 
       const prayers = [
         { key: 'subuh', label: 'Subuh' },
@@ -261,7 +296,7 @@ export default function App() {
     checkPrayerTimes();
     const interval = setInterval(checkPrayerTimes, 5000);
     return () => clearInterval(interval);
-  }, [adzanReminder, currentCity?.timings, selectedMuadzin]);
+  }, [adzanReminder, statusBarCountdownEnabled, currentCity, selectedMuadzin]);
 
   const navItems = [
     { key: 'home', label: 'Beranda', icon: 'mosque', activeIcon: 'mosque' },
@@ -400,6 +435,8 @@ export default function App() {
           onSelectMuadzin={handleSelectMuadzin}
           adzanReminder={adzanReminder}
           onToggleAdzanReminder={handleToggleAdzanReminder}
+          statusBarCountdown={statusBarCountdownEnabled}
+          onToggleStatusBarCountdown={handleToggleStatusBarCountdown}
         />
 
         <AuthModal
