@@ -46,6 +46,7 @@ import { initOfflineDirectories, getMuadzinAudioSource } from './src/services/of
 // Data
 import { INDONESIAN_CITIES, getCityWithDynamicTimings } from './src/data/citiesPrayerData';
 import { detectUserLocationAndCity, checkLocationPermission } from './src/services/locationService';
+import { getKemenagPrayerSchedule } from './src/services/prayerService';
 import { QORI_LIST, MUADZIN_LIST, AVATAR_OPTIONS } from './src/data/recitersData';
 
 export default function App() {
@@ -198,10 +199,43 @@ export default function App() {
     };
   }, [userProfile?.isLoggedIn, userProfile?.token]);
 
+  // Sinkronisasi jadwal sholat resmi Kemenag RI (Bimas Islam) secara otomatis
+  useEffect(() => {
+    if (!currentCity) return;
+    let active = true;
+    getKemenagPrayerSchedule(currentCity, new Date()).then(({ timings }) => {
+      if (active && timings) {
+        setCurrentCity((prev) => {
+          if (!prev) return prev;
+          if (JSON.stringify(prev.timings) === JSON.stringify(timings)) return prev;
+          return {
+            ...prev,
+            timings: {
+              ...prev.timings,
+              ...timings,
+            },
+          };
+        });
+      }
+    }).catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [currentCity?.id, currentCity?.kemenagId]);
+
   const handleSelectCity = (city) => {
     const freshCity = getCityWithDynamicTimings(city, new Date());
     setCurrentCity(freshCity);
     AsyncStorage.setItem('noor_mobile_city', JSON.stringify(freshCity)).catch(() => {});
+    getKemenagPrayerSchedule(freshCity, new Date()).then(({ timings }) => {
+      if (timings) {
+        setCurrentCity((prev) => ({
+          ...prev,
+          timings: { ...prev.timings, ...timings },
+        }));
+      }
+    }).catch(() => {});
   };
 
   const handleLogout = () => {

@@ -87,15 +87,22 @@ export function calculateOfflineKemenagSchedule(latitude, longitude, timezone = 
   const haMaghrib = getHourAngle(-1);
   const haIsya = getHourAngle(-18);
 
-  const ihtiyath = 2 / 60; // 2 menit pengaman hisab Kemenag
+  // Buffer Ihtiyath Standar Kemenag RI (Bimas Islam):
+  // Dzuhur: waktu zawal + diameter piringan matahari (~1m 4s) + ihtiyath pengaman Kemenag (~2.5m)
+  const subuhIhtiyath = 2.3 / 60;
+  const dzuhurIhtiyath = 4.0 / 60;
+  const asharIhtiyath = 2.7 / 60;
+  const maghribIhtiyath = 2.6 / 60;
+  const isyaIhtiyath = 2.9 / 60;
+  const dhuhaIhtiyath = 3.2 / 60;
 
-  const dzuhurH = noon + ihtiyath;
-  const subuhH = (haSubuh ? noon - haSubuh : noon - 4.5) + ihtiyath;
-  const terbitH = haTerbit ? noon - haTerbit : noon - 4.0;
-  const dhuhaH = (haDhuha ? noon - haDhuha : noon - 3.5) + ihtiyath;
-  const asharH = (haAshar ? noon + haAshar : noon + 3.2) + ihtiyath;
-  const maghribH = (haMaghrib ? noon + haMaghrib : noon + 4.0) + ihtiyath;
-  const isyaH = (haIsya ? noon + haIsya : noon + 5.2) + ihtiyath;
+  const dzuhurH = noon + dzuhurIhtiyath;
+  const subuhH = (haSubuh ? noon - haSubuh : noon - 4.5) + subuhIhtiyath;
+  const terbitH = haTerbit ? noon - haTerbit - (1.5 / 60) : noon - 4.0;
+  const dhuhaH = (haDhuha ? noon - haDhuha : noon - 3.5) + dhuhaIhtiyath;
+  const asharH = (haAshar ? noon + haAshar : noon + 3.2) + asharIhtiyath;
+  const maghribH = (haMaghrib ? noon + haMaghrib : noon + 4.0) + maghribIhtiyath;
+  const isyaH = (haIsya ? noon + haIsya : noon + 5.2) + isyaIhtiyath;
   const imsakH = subuhH - (10 / 60);
 
   function formatTime(hours) {
@@ -103,8 +110,10 @@ export function calculateOfflineKemenagSchedule(latitude, longitude, timezone = 
     while (normalized < 0) normalized += 24;
     while (normalized >= 24) normalized -= 24;
 
-    const h = Math.floor(normalized);
-    const m = Math.floor((normalized - h) * 60);
+    const totalSeconds = Math.round(normalized * 3600);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 
