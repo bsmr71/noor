@@ -268,7 +268,9 @@ export default function App() {
 
   // Selected Reciters & Adzan States
   const [selectedQori, setSelectedQori] = useState(QORI_LIST[0]); // Mishary Alafasy
-  const [selectedMuadzin, setSelectedMuadzin] = useState(MUADZIN_LIST[0]); // Ali Ahmed Mulla
+  const [selectedMuadzin, setSelectedMuadzin] = useState(
+    MUADZIN_LIST.find((m) => m.isDefault) || MUADZIN_LIST[0]
+  ); // Syaikh Ali Ahmed Mulla (Bawaan Offline)
   const [adzanReminder, setAdzanReminder] = useState(true);
   const [statusBarCountdownEnabled, setStatusBarCountdownEnabled] = useState(true);
   const [adzanModal, setAdzanModal] = useState({

@@ -11,9 +11,8 @@ export const MUADZIN_LIST = [
     origin: "Al-Quds, Palestina",
     badge: "Palestina",
     description: "Lantunan penuh kehormatan dan kerinduan dari kiblat pertama umat Islam di Al-Quds.",
-    avatar: "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/palestina.mp3",
+    avatar: "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "fakhrul_unic",
@@ -25,9 +24,8 @@ export const MUADZIN_LIST = [
     origin: "Kuala Lumpur, Malaysia",
     badge: "Malaysia",
     description: "Lantunan merdu dan syahdu khas Ustaz Fakhrul UNIC Malaysia.",
-    avatar: "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/fakhrul_unic.mp3",
+    avatar: "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "muzammil",
@@ -39,9 +37,8 @@ export const MUADZIN_LIST = [
     origin: "Aceh / Bandung, Indonesia",
     badge: "Indonesia",
     description: "Lantunan adzan merdu dan tenang yang sangat menyentuh hati jamaah.",
-    avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/muzammil.mp3",
+    avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "muzammil_fajr",
@@ -53,9 +50,8 @@ export const MUADZIN_LIST = [
     origin: "Indonesia",
     badge: "Khusus Subuh",
     description: "Adzan Subuh dengan lafadz 'Ash-shalatu khairum minan naum' yang menggugah jiwa.",
-    avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/muzammil_fajr.mp3",
+    avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "salim_bahanan_fajr",
@@ -67,9 +63,8 @@ export const MUADZIN_LIST = [
     origin: "Jakarta, Indonesia",
     badge: "Khusus Subuh",
     description: "Lantunan adzan Subuh khusyuk dan menentramkan jiwa di waktu fajar.",
-    avatar: "https://images.unsplash.com/photo-1542385151-efd9000785a0?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/salim_bahanan_fajr.mp3",
+    avatar: "https://images.unsplash.com/photo-1542385151-efd9000785a0?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "salim_bahanan",
@@ -81,9 +76,8 @@ export const MUADZIN_LIST = [
     origin: "Jakarta, Indonesia",
     badge: "Indonesia",
     description: "Lantunan adzan merdu dengan karakter vokal yang lembut dan syahdu.",
-    avatar: "https://images.unsplash.com/photo-1542385151-efd9000785a0?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/salim_bahanan.mp3",
+    avatar: "https://images.unsplash.com/photo-1542385151-efd9000785a0?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "syam_elmarusy_fajr",
@@ -95,23 +89,21 @@ export const MUADZIN_LIST = [
     origin: "Sulawesi Selatan / Jakarta, Indonesia",
     badge: "Khusus Subuh",
     description: "Adzan Subuh merdu khas Ustadz Syam Elmarusy.",
-    avatar: "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/syam_elmarusy_fajr.mp3",
+    avatar: "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "syam_elmarusy",
     name: "Adhan (Syam Elmarusy)",
-    arabicName: "أذان شمس المروصي",
+    arabicName: "أذان شمس المروصi",
     title: "Ustadz Syam Elmarusy",
     country: "Indonesia",
     flag: "🇮🇩",
     origin: "Indonesia",
     badge: "Indonesia",
     description: "Lantunan adzan irama khas dan menenangkan dari Ustadz Syam Elmarusy.",
-    avatar: "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/syam_elmarusy.mp3",
+    avatar: "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "mohamed_kalipha",
@@ -123,9 +115,8 @@ export const MUADZIN_LIST = [
     origin: "Kairo, Mesir",
     badge: "Mesir",
     description: "Lantunan adzan penuh penghayatan khas para masyayikh Kairo Mesir.",
-    avatar: "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/mohamed_kalipha.mp3",
+    avatar: "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "zeeshan_yekin",
@@ -137,9 +128,8 @@ export const MUADZIN_LIST = [
     origin: "Inggris Raya",
     badge: "Inggris Raya",
     description: "Lantunan adzan merdu bergaya internasional dari Inggris Raya.",
-    avatar: "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=200&q=80",
-    isBundled: true,
-    offlineBadge: "Bawaan Offline"
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/zeeshan_yekin.mp3",
+    avatar: "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=200&q=80"
   },
   {
     id: "mulla",
@@ -151,7 +141,7 @@ export const MUADZIN_LIST = [
     origin: "Makkah Al-Mukarramah, Arab Saudi",
     badge: "Masjidil Haram",
     description: "Lantunan takbir menggelegar, berwibawa, dan sangat ikonik. Muadzin senior Masjidil Haram sejak tahun 1975.",
-    audioUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_HQ.mp3",
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/mulla.mp3",
     avatar: "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=200&q=80",
     isDefault: true,
     isBundled: true,
@@ -167,7 +157,7 @@ export const MUADZIN_LIST = [
     origin: "Madinah Al-Munawwarah, Arab Saudi",
     badge: "Masjid Nabawi",
     description: "Lantunan lembut, tenang, dan mendayu-dayu yang menggetarkan hati jamaah Masjid Nabawi.",
-    audioUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Abdul_Majid_Al_Surehi_1_(%D8%B9%D8%A8%D8%AF%D8%A7%D9%84%D9%85%D8%AC%D9%8A%D8%AF_%D8%A7%D9%84%D8%B3%D8%B1%D9%8A%D8%AD%D9%8A).mp3",
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/surhi.mp3",
     avatar: "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=200&q=80"
   },
   {
@@ -180,7 +170,7 @@ export const MUADZIN_LIST = [
     origin: "Kuwait",
     badge: "Langgam Syahdu",
     description: "Adzan dengan vokal merdu nan syahdu, intonasi tartil yang sangat akrab di telinga umat Islam.",
-    audioUrl: "https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Adhan_Kuwait_(%D8%A3%D8%B0%D8%A7%D9%86_%D8%A7%D9%84%D9%83%D9%88%D9%8A%D8%AA).mp3",
+    audioUrl: "https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/alafasy_adhan.mp3",
     avatar: "https://images.unsplash.com/photo-1609599006353-e629aaabfeae?auto=format&fit=crop&w=200&q=80"
   }
 ];

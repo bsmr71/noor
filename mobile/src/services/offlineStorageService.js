@@ -10,19 +10,9 @@ const QURAN_DIR = `${BASE_DIR}quran/`;
 // Bundled default adzan asset
 export const BUNDLED_DEFAULT_ADZAN = require('../../assets/audio/adzan_default.mp3');
 
-// Map seluruh audio adzan bawaan offline
+// Map audio adzan bawaan offline (hanya default Syaikh Ali Ahmed Mulla agar APK tetap ringan ~50MB)
 export const BUNDLED_ADZAN_MAP = {
   mulla: require('../../assets/audio/adzan_default.mp3'),
-  palestina: require('../../assets/audio/adhan_palestina.mp3'),
-  fakhrul_unic: require('../../assets/audio/adhan_fakhrul_unic.mp3'),
-  muzammil: require('../../assets/audio/adhan_muzammil.mp3'),
-  muzammil_fajr: require('../../assets/audio/adhan_fajr_muzammil.mp3'),
-  salim_bahanan_fajr: require('../../assets/audio/adhan_fajr_salim_bahanan.mp3'),
-  salim_bahanan: require('../../assets/audio/adhan_salim_bahanan.mp3'),
-  syam_elmarusy_fajr: require('../../assets/audio/adhan_fajr_syam_elmarusy.mp3'),
-  syam_elmarusy: require('../../assets/audio/adhan_syam_elmarusy.mp3'),
-  mohamed_kalipha: require('../../assets/audio/adhan_mohamed_kalipha.mp3'),
-  zeeshan_yekin: require('../../assets/audio/adhan_zeeshan_yekin.mp3'),
 };
 
 /**
@@ -86,31 +76,49 @@ export async function getMuadzinAudioSource(muadzin) {
  * Unduh audio muadzin ke penyimpanan offline
  */
 export async function downloadMuadzinAudio(muadzin, onProgress = null) {
-  if (!muadzin || !muadzin.audioUrl) throw new Error('Data muadzin tidak valid');
+  if (!muadzin || (!muadzin.audioUrl && !muadzin.id)) throw new Error('Data muadzin tidak valid');
   if (muadzin.id === 'mulla') return true; // Default selalu offline
 
   await initOfflineDirectories();
   const fileUri = `${MUADZIN_DIR}${muadzin.id}.mp3`;
 
-  const downloadResumable = FileSystem.createDownloadResumable(
+  const urlsToTry = [
     muadzin.audioUrl,
-    fileUri,
-    {},
-    (downloadProgress) => {
-      if (onProgress && downloadProgress.totalBytesExpectedToWrite > 0) {
-        const progress =
-          downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-        onProgress(Math.min(1, Math.max(0, progress)));
-      }
-    }
-  );
+    `https://cdn.jsdelivr.net/gh/bsmr71/noor@main/public/audio/adzan/${muadzin.id}.mp3`,
+    `https://raw.githubusercontent.com/bsmr71/noor/main/public/audio/adzan/${muadzin.id}.mp3`,
+  ].filter(Boolean);
 
-  const result = await downloadResumable.downloadAsync();
-  if (result && result.uri) {
-    await AsyncStorage.setItem(`@noor_muadzin_offline_${muadzin.id}`, result.uri);
-    return result.uri;
+  let lastError = null;
+  for (const url of urlsToTry) {
+    try {
+      const downloadResumable = FileSystem.createDownloadResumable(
+        url,
+        fileUri,
+        {},
+        (downloadProgress) => {
+          if (onProgress && downloadProgress.totalBytesExpectedToWrite > 0) {
+            const progress =
+              downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+            onProgress(Math.min(1, Math.max(0, progress)));
+          }
+        }
+      );
+
+      const result = await downloadResumable.downloadAsync();
+      if (result && result.uri) {
+        // Verifikasi ukuran file > 10KB agar tidak menyimpan file error kosong
+        const info = await FileSystem.getInfoAsync(result.uri);
+        if (info.exists && info.size > 10000) {
+          await AsyncStorage.setItem(`@noor_muadzin_offline_${muadzin.id}`, result.uri);
+          return result.uri;
+        }
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
-  throw new Error('Gagal mengunduh audio muadzin');
+
+  throw lastError || new Error('Gagal mengunduh audio muadzin');
 }
 
 /**

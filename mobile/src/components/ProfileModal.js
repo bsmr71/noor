@@ -665,21 +665,24 @@ export default function ProfileModal({
             {activeTab === 'muadzin' && (
               <View style={{ gap: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <View>
+                  <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.tabHeading}>Suara Pemberitahuan</Text>
                     <Text style={styles.tabSubheading}>
-                      Pilih lantunan adzan favorit untuk waktu sholat Anda
+                      Pilih dan unduh lantunan adzan favorit untuk waktu sholat Anda
                     </Text>
                   </View>
                   <View style={styles.offlineAllBadge}>
-                    <Ionicons name="checkmark-done" size={13} color="#059669" />
-                    <Text style={styles.offlineAllText}>Semua Offline</Text>
+                    <Ionicons name="cloud-offline-outline" size={13} color="#059669" />
+                    <Text style={styles.offlineAllText}>Bisa Offline</Text>
                   </View>
                 </View>
 
                 {MUADZIN_LIST.map((m) => {
                   const isSelected = selectedMuadzin?.id === m.id;
                   const isPlaying = previewingId === m.id;
+                  const isBundled = m.id === 'mulla';
+                  const isOffline = isBundled || !!downloadedMuadzins[m.id];
+                  const isDownloading = downloadingMuadzinId === m.id;
 
                   return (
                     <TouchableOpacity
@@ -689,7 +692,19 @@ export default function ProfileModal({
                         isSelected && styles.adhanRowCardSelected,
                         isPlaying && styles.adhanRowCardPlaying,
                       ]}
-                      onPress={() => onSelectMuadzin(m)}
+                      onPress={() => {
+                        onSelectMuadzin(m);
+                        if (!isOffline && !isDownloading) {
+                          Alert.alert(
+                            'Unduh Suara Adzan?',
+                            `Unduh suara adzan ${m.name} agar tersimpan offline dan berbunyi tepat waktu saat waktu sholat tiba?`,
+                            [
+                              { text: 'Nanti', style: 'cancel' },
+                              { text: 'Unduh Sekarang', onPress: () => handleDownloadMuadzin(m) },
+                            ]
+                          );
+                        }
+                      }}
                       activeOpacity={0.8}
                     >
                       {/* Flag circle */}
@@ -709,13 +724,46 @@ export default function ProfileModal({
                             </View>
                           )}
                         </View>
-                        <Text style={[styles.adhanCountryText, isSelected && styles.adhanCountryTextSelected]}>
-                          {m.country || m.origin}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <Text style={[styles.adhanCountryText, isSelected && styles.adhanCountryTextSelected]}>
+                            {m.country || m.origin}
+                          </Text>
+                          {isOffline ? (
+                            <View style={styles.adhanOfflineBadge}>
+                              <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
+                              <Text style={styles.adhanOfflineText}>{isBundled ? 'Bawaan' : 'Offline'}</Text>
+                            </View>
+                          ) : (
+                            <Text style={{ fontSize: 10, color: '#9ca3af' }}>• Belum diunduh</Text>
+                          )}
+                        </View>
                       </View>
 
                       {/* Action & selection */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {isDownloading ? (
+                          <View style={[styles.adhanDownloadPill, styles.adhanDownloadPillLoading]}>
+                            <ActivityIndicator size="small" color="#059669" />
+                          </View>
+                        ) : !isOffline ? (
+                          <TouchableOpacity
+                            style={styles.adhanDownloadPill}
+                            onPress={() => handleDownloadMuadzin(m)}
+                            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          >
+                            <Ionicons name="cloud-download-outline" size={13} color="#059669" />
+                            <Text style={styles.adhanDownloadPillText}>Unduh</Text>
+                          </TouchableOpacity>
+                        ) : !isBundled ? (
+                          <TouchableOpacity
+                            style={styles.adhanTrashBtn}
+                            onPress={() => handleDeleteMuadzin(m)}
+                            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#9ca3af" />
+                          </TouchableOpacity>
+                        ) : null}
+
                         <TouchableOpacity
                           style={[styles.adhanPlayPill, isPlaying && styles.adhanPlayPillActive]}
                           onPress={() => handlePlayPreview(m.id, m.audioUrl, m)}
@@ -1444,6 +1492,48 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#cbd5e1',
     backgroundColor: '#ffffff',
+  },
+  adhanDownloadPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  adhanDownloadPillLoading: {
+    backgroundColor: '#f1f5f3',
+    borderColor: '#e2e8e5',
+    paddingHorizontal: 12,
+  },
+  adhanDownloadPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  adhanOfflineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#86efac',
+  },
+  adhanOfflineText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  adhanTrashBtn: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
