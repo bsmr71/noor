@@ -4,11 +4,14 @@ import { calculateOfflineKemenagSchedule } from '../services/prayerService';
 
 export const RAW_CITIES = [
   { id: 'jakarta', kemenagId: '1301', name: 'Jakarta', region: 'DKI Jakarta', lat: -6.2088, lon: 106.8456, tz: 7 },
-  { id: 'bogor', kemenagId: '1222', name: 'Bogor', region: 'Jawa Barat', lat: -6.5971, lon: 106.8060, tz: 7 },
+  { id: 'cibinong', kemenagId: '1204', name: 'Kab. Bogor (Cibinong)', region: 'Jawa Barat', lat: -6.4817, lon: 106.8536, tz: 7 },
+  { id: 'bogor', kemenagId: '1222', name: 'Kota Bogor', region: 'Jawa Barat', lat: -6.5971, lon: 106.8060, tz: 7 },
   { id: 'depok', kemenagId: '1225', name: 'Depok', region: 'Jawa Barat', lat: -6.4025, lon: 106.7942, tz: 7 },
-  { id: 'tangerang', kemenagId: '1107', name: 'Tangerang', region: 'Banten', lat: -6.1783, lon: 106.6319, tz: 7 },
+  { id: 'tangerang', kemenagId: '1107', name: 'Kota Tangerang', region: 'Banten', lat: -6.1783, lon: 106.6319, tz: 7 },
+  { id: 'tigaraksa', kemenagId: '1103', name: 'Kab. Tangerang (Tigaraksa)', region: 'Banten', lat: -6.2625, lon: 106.4862, tz: 7 },
   { id: 'tangsel', kemenagId: '1108', name: 'Tangerang Selatan', region: 'Banten', lat: -6.2952, lon: 106.7088, tz: 7 },
-  { id: 'bekasi', kemenagId: '1221', name: 'Bekasi', region: 'Jawa Barat', lat: -6.2383, lon: 106.9756, tz: 7 },
+  { id: 'bekasi', kemenagId: '1221', name: 'Kota Bekasi', region: 'Jawa Barat', lat: -6.2383, lon: 106.9756, tz: 7 },
+  { id: 'cikarang', kemenagId: '1202', name: 'Kab. Bekasi (Cikarang)', region: 'Jawa Barat', lat: -6.2415, lon: 107.1517, tz: 7 },
   { id: 'bandung', kemenagId: '1219', name: 'Bandung', region: 'Jawa Barat', lat: -6.9175, lon: 107.6191, tz: 7 },
   { id: 'cirebon', kemenagId: '1224', name: 'Cirebon', region: 'Jawa Barat', lat: -6.7320, lon: 108.5523, tz: 7 },
   { id: 'serang', kemenagId: '1106', name: 'Serang', region: 'Banten', lat: -6.1104, lon: 106.1640, tz: 7 },
