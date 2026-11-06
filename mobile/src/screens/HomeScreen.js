@@ -164,6 +164,21 @@ export default function HomeScreen({
   const isFriday = currentTime.getDay() === 5;
   const hijriDate = useMemo(() => getHijriDate(currentTime), [currentTime]);
   const indonesianDate = useMemo(() => getIndonesianDayDate(currentTime), [currentTime]);
+
+  const tzCode = useMemo(() => {
+    const tz = currentCity?.timezone || 7;
+    if (tz === 9) return 'WIT';
+    if (tz === 8) return 'WITA';
+    return 'WIB';
+  }, [currentCity?.timezone]);
+
+  const liveTimeString = useMemo(() => {
+    const h = String(currentTime.getHours()).padStart(2, '0');
+    const m = String(currentTime.getMinutes()).padStart(2, '0');
+    const s = String(currentTime.getSeconds()).padStart(2, '0');
+    return `${h}:${m}:${s} ${tzCode}`;
+  }, [currentTime, tzCode]);
+
   const prayerStatus = useMemo(
     () => getCurrentPrayerStatus(currentCity?.timings, currentTime),
     [currentCity, currentTime]
@@ -684,9 +699,9 @@ export default function HomeScreen({
             onPress={onOpenCityModal}
             activeOpacity={0.8}
           >
-            <Ionicons name="location-sharp" size={13} color="#fe932c" />
+            <Ionicons name={currentCity?.isGpsAuto ? "navigate" : "location-sharp"} size={13} color="#fe932c" />
             <Text style={styles.heroLocationText}>
-              {currentCity?.name || 'Bogor'} • {prayerStatus.currentPrayerTime || '14:54'} WIB
+              {liveTimeString}
             </Text>
             <Ionicons name="chevron-down" size={12} color="#ffffff88" />
           </TouchableOpacity>
@@ -723,6 +738,13 @@ export default function HomeScreen({
                             : 'العصر'}
                 </Text>
               </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+              <MaterialCommunityIcons name="clock-check-outline" size={13} color="#fe932c" />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#fe932c' }}>
+                Waktu Masuk: {prayerStatus.nextPrayerTime || '14:54'} {tzCode}
+              </Text>
             </View>
 
             <Text style={styles.heroPrayerDesc} numberOfLines={2}>
@@ -1612,18 +1634,19 @@ const styles = StyleSheet.create({
   heroLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     gap: 4,
   },
   heroLocationText: {
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
+    fontSize: 11.5,
+    fontFamily: Fonts.bold,
     color: '#ffffff',
+    letterSpacing: 0.3,
   },
   heroMiddleRow: {
     flexDirection: 'row',

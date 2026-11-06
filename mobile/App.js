@@ -44,13 +44,14 @@ import {
 import { initOfflineDirectories, getMuadzinAudioSource } from './src/services/offlineStorageService';
 
 // Data
-import { INDONESIAN_CITIES } from './src/data/citiesPrayerData';
+import { INDONESIAN_CITIES, getCityWithDynamicTimings } from './src/data/citiesPrayerData';
+import { detectUserLocationAndCity, checkLocationPermission } from './src/services/locationService';
 import { QORI_LIST, MUADZIN_LIST, AVATAR_OPTIONS } from './src/data/recitersData';
 
 export default function App() {
   const isKeyboardVisible = useKeyboardVisible();
   const [activeTab, setActiveTab] = useState('home'); // 'home', 'quran', 'kiblat', 'dzikir'
-  const [currentCity, setCurrentCity] = useState(INDONESIAN_CITIES[0]); // Jakarta
+  const [currentCity, setCurrentCity] = useState(() => getCityWithDynamicTimings(INDONESIAN_CITIES[0], new Date())); // Jakarta fresh
   const [isCityModalVisible, setIsCityModalVisible] = useState(false);
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
   const [profileInitialTab, setProfileInitialTab] = useState('profil');
@@ -101,13 +102,33 @@ export default function App() {
         } catch (e) {}
       }
     });
-    AsyncStorage.getItem('noor_mobile_city').then((raw) => {
+    AsyncStorage.getItem('noor_mobile_city').then(async (raw) => {
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
-          if (parsed?.name) setCurrentCity(parsed);
+          if (parsed?.name) {
+            // Selalu hitung ulang jadwal sholat secara dinamis untuk hari ini
+            const freshCity = getCityWithDynamicTimings(parsed, new Date());
+            setCurrentCity(freshCity);
+            return;
+          }
         } catch (e) {}
       }
+
+      // Jika belum ada kota yang dipilih atau pengguna mengaktifkan GPS, coba auto-detect
+      const hasPerm = await checkLocationPermission();
+      if (hasPerm) {
+        try {
+          const autoCity = await detectUserLocationAndCity();
+          if (autoCity) {
+            setCurrentCity(autoCity);
+            AsyncStorage.setItem('noor_mobile_city', JSON.stringify(autoCity)).catch(() => {});
+            return;
+          }
+        } catch (e) {}
+      }
+
+      setCurrentCity(getCityWithDynamicTimings(INDONESIAN_CITIES[0], new Date()));
     });
     AsyncStorage.getItem('noor_mobile_muadzin').then((raw) => {
       if (raw) {
@@ -178,8 +199,9 @@ export default function App() {
   }, [userProfile?.isLoggedIn, userProfile?.token]);
 
   const handleSelectCity = (city) => {
-    setCurrentCity(city);
-    AsyncStorage.setItem('noor_mobile_city', JSON.stringify(city)).catch(() => {});
+    const freshCity = getCityWithDynamicTimings(city, new Date());
+    setCurrentCity(freshCity);
+    AsyncStorage.setItem('noor_mobile_city', JSON.stringify(freshCity)).catch(() => {});
   };
 
   const handleLogout = () => {
@@ -222,6 +244,7 @@ export default function App() {
     isTest: false,
   });
   const lastPlayedAdzanRef = React.useRef('');
+  const lastCalculatedDayRef = React.useRef('');
 
   const handleToggleAdzanReminder = (val) => {
     setAdzanReminder(val);
@@ -235,7 +258,7 @@ export default function App() {
       cancelPrayerCountdownNotification();
     } else if (currentCity?.timings) {
       const status = getCurrentPrayerStatus(currentCity.timings, new Date());
-      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', true, currentCity.timings);
+      updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', true, currentCity.timings, true);
     }
   };
 
@@ -295,6 +318,14 @@ export default function App() {
       const currentM = String(now.getMinutes()).padStart(2, '0');
       const currentHHMM = `${currentH}:${currentM}`;
       const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+      // Deteksi pergantian hari untuk recalculate jadwal sholat matahari
+      if (lastCalculatedDayRef.current && lastCalculatedDayRef.current !== todayKey) {
+        lastCalculatedDayRef.current = todayKey;
+        setCurrentCity((prev) => getCityWithDynamicTimings(prev, now));
+      } else if (!lastCalculatedDayRef.current) {
+        lastCalculatedDayRef.current = todayKey;
+      }
 
       // 1. Update status bar countdown notification
       const status = getCurrentPrayerStatus(currentCity.timings, now);

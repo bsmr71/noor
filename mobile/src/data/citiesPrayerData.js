@@ -2,7 +2,7 @@
 import { calculateQibla } from '../utils/qiblaCalculator';
 import { calculateOfflineKemenagSchedule } from '../services/prayerService';
 
-const RAW_CITIES = [
+export const RAW_CITIES = [
   { id: 'jakarta', kemenagId: '1301', name: 'Jakarta', region: 'DKI Jakarta', lat: -6.2088, lon: 106.8456, tz: 7 },
   { id: 'bogor', kemenagId: '1222', name: 'Bogor', region: 'Jawa Barat', lat: -6.5971, lon: 106.8060, tz: 7 },
   { id: 'depok', kemenagId: '1225', name: 'Depok', region: 'Jawa Barat', lat: -6.4025, lon: 106.7942, tz: 7 },
@@ -39,23 +39,24 @@ const RAW_CITIES = [
   { id: 'jayapura', kemenagId: '3329', name: 'Jayapura', region: 'Papua', lat: -2.5337, lon: 140.7181, tz: 9 }
 ];
 
-// Inisialisasi daftar kota dengan perhitungan Qibla dan Hisab Kemenag
-export const CITIES = RAW_CITIES.map((c) => {
-  const qibla = calculateQibla(c.lat, c.lon);
-  const now = new Date();
-  const schedule = calculateOfflineKemenagSchedule(c.lat, c.lon, c.tz, now);
+/**
+ * Menghitung ulang jadwal sholat secara dinamis untuk kota dan tanggal tertentu
+ */
+export function getCityWithDynamicTimings(city, date = new Date()) {
+  if (!city) return null;
+  const lat = city.latitude ?? city.lat ?? -6.2088;
+  const lon = city.longitude ?? city.lon ?? 106.8456;
+  const tz = city.timezone ?? city.tz ?? 7;
+  const qibla = calculateQibla(lat, lon);
+  const schedule = calculateOfflineKemenagSchedule(lat, lon, tz, date);
 
   return {
-    id: c.id,
-    kemenagId: c.kemenagId,
-    name: c.name,
-    province: c.region,
-    region: c.region,
-    lat: c.lat,
-    lon: c.lon,
-    latitude: c.lat,
-    longitude: c.lon,
-    timezone: c.tz,
+    ...city,
+    lat,
+    lon,
+    latitude: lat,
+    longitude: lon,
+    timezone: tz,
     qiblaAngle: qibla.azimuth,
     qiblaDirection: qibla.directionText,
     fromWest: qibla.fromWest,
@@ -71,7 +72,10 @@ export const CITIES = RAW_CITIES.map((c) => {
       isya: schedule.isya
     }
   };
-});
+}
+
+// Inisialisasi daftar kota dengan perhitungan Qibla dan Hisab Kemenag
+export const CITIES = RAW_CITIES.map((c) => getCityWithDynamicTimings(c, new Date()));
 
 export const INDONESIAN_CITIES = CITIES;
 

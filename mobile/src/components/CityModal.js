@@ -7,14 +7,18 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { INDONESIAN_CITIES } from '../data/citiesPrayerData';
+import { detectUserLocationAndCity } from '../services/locationService';
 import KeyboardSafeModalWrapper from './KeyboardSafeModalWrapper';
 
 export default function CityModal({ visible, onClose, selectedCity, onSelectCity }) {
   const [search, setSearch] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
 
   const filteredCities = useMemo(() => {
     if (!search.trim()) return INDONESIAN_CITIES;
@@ -25,6 +29,28 @@ export default function CityModal({ visible, onClose, selectedCity, onSelectCity
         c.province.toLowerCase().includes(q)
     );
   }, [search]);
+
+  const handleUseGpsLocation = async () => {
+    try {
+      setIsLocating(true);
+      const detected = await detectUserLocationAndCity(selectedCity);
+      if (detected) {
+        onSelectCity(detected);
+        onClose();
+        Alert.alert(
+          'Lokasi GPS Terkunci',
+          `Berhasil mendeteksi lokasi Anda: ${detected.locationDetail || detected.name} (${detected.province}). Jadwal sholat & arah kiblat telah disesuaikan secara presisi.`
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Gagal Mendeteksi GPS',
+        error.message || 'Pastikan GPS perangkat Anda aktif dan izin lokasi telah diberikan.'
+      );
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -55,17 +81,30 @@ export default function CityModal({ visible, onClose, selectedCity, onSelectCity
 
           {/* GPS Quick Action */}
           <TouchableOpacity
-            style={styles.gpsBtn}
-            onPress={() => {
-              // Default to Jakarta Kemenag
-              const jkt = INDONESIAN_CITIES[0];
-              onSelectCity(jkt);
-              onClose();
-            }}
+            style={[styles.gpsBtn, isLocating && styles.gpsBtnDisabled]}
+            onPress={handleUseGpsLocation}
+            disabled={isLocating}
+            activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="crosshairs-gps" size={18} color={Colors.primary} />
-            <Text style={styles.gpsBtnText}>Gunakan Lokasi GPS Saat Ini</Text>
+            {isLocating ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <MaterialCommunityIcons name="crosshairs-gps" size={18} color={Colors.primary} />
+            )}
+            <Text style={styles.gpsBtnText}>
+              {isLocating ? 'Mencari Sinyal Satelit GPS...' : 'Gunakan Lokasi GPS Saat Ini'}
+            </Text>
           </TouchableOpacity>
+
+          {/* Current GPS Status Badge if Active */}
+          {selectedCity?.isGpsAuto && (
+            <View style={styles.gpsActiveNotice}>
+              <Ionicons name="checkmark-circle" size={14} color="#059669" />
+              <Text style={styles.gpsActiveNoticeText}>
+                Lokasi aktif via GPS: <Text style={{ fontWeight: 'bold' }}>{selectedCity.locationDetail || selectedCity.name}</Text>
+              </Text>
+            </View>
+          )}
 
           {/* Cities List */}
           <FlatList
@@ -161,10 +200,30 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
+  gpsBtnDisabled: {
+    opacity: 0.7,
+  },
   gpsBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#002721',
+  },
+  gpsActiveNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  gpsActiveNoticeText: {
+    fontSize: 11,
+    color: '#065f46',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -200,4 +259,3 @@ const styles = StyleSheet.create({
     color: '#ffffffaa',
   },
 });
-

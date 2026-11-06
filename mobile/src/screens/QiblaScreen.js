@@ -109,16 +109,16 @@ export default function QiblaScreen({ currentCity, onOpenCityModal, onOpenCalend
         <View style={styles.locIcon}>
           <Ionicons name="location-sharp" size={20} color={Colors.primary} />
         </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.locCity}>{currentCity?.name || 'Jakarta'}</Text>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Text style={styles.locCity}>{currentCity?.locationDetail || currentCity?.name || 'Jakarta'}</Text>
             <View style={styles.provinceBadge}>
-              <Text style={styles.provinceText}>{currentCity?.province || 'DKI Jakarta'}</Text>
+              <Text style={styles.provinceText}>{currentCity?.isGpsAuto ? '📍 GPS Akurat' : (currentCity?.province || 'DKI Jakarta')}</Text>
             </View>
           </View>
           <Text style={styles.locCoords}>
-            {Math.abs(currentCity?.lat || 6.2088).toFixed(4)}° {currentCity?.lat < 0 ? 'LS' : 'LU'},{' '}
-            {Math.abs(currentCity?.lng || 106.8456).toFixed(4)}° {currentCity?.lng < 0 ? 'BB' : 'BT'}
+            {Math.abs(currentCity?.lat || currentCity?.latitude || 6.2088).toFixed(4)}° {(currentCity?.lat || currentCity?.latitude) < 0 ? 'LS' : 'LU'},{' '}
+            {Math.abs(currentCity?.lon || currentCity?.longitude || 106.8456).toFixed(4)}° {(currentCity?.lon || currentCity?.longitude) < 0 ? 'BB' : 'BT'}
           </Text>
         </View>
         <TouchableOpacity style={styles.changeCityBtn} onPress={onOpenCityModal}>
@@ -150,7 +150,9 @@ export default function QiblaScreen({ currentCity, onOpenCityModal, onOpenCalend
             <MaterialCommunityIcons name="navigation" size={22} color={Colors.secondary} />
             <Text style={styles.bearingText}>{qiblaAngle}°</Text>
             <Text style={styles.bearingSub}>{currentCity?.fromWest || '25.2° U-B'}</Text>
-            <Text style={styles.distanceText}>7.920 km Ka'bah</Text>
+            <Text style={styles.distanceText}>
+              {currentCity?.distanceKm ? `${currentCity.distanceKm.toLocaleString('id-ID')} km Ka'bah` : "7.920 km Ka'bah"}
+            </Text>
           </View>
         </View>
 
@@ -213,7 +215,7 @@ export default function QiblaScreen({ currentCity, onOpenCityModal, onOpenCalend
             <Text style={styles.sourceText}>{daySource}</Text>
           </View>
           <Text style={styles.tzText}>
-            WIB (UTC+{currentCity?.timezone || 7})
+            {(currentCity?.timezone === 9 ? 'WIT' : currentCity?.timezone === 8 ? 'WITA' : 'WIB')} (UTC+{currentCity?.timezone || 7})
           </Text>
         </View>
 

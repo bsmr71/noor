@@ -1,5 +1,6 @@
 // Layanan Jadwal Sholat Resmi Kementerian Agama Republik Indonesia (Bimas Islam)
 // Dilengkapi Engine Hisab Astronomi Offline Standar Kemenag & Sinkronisasi API Kemenag
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function toRad(deg) {
   return (deg * Math.PI) / 180;
@@ -121,6 +122,16 @@ export function calculateOfflineKemenagSchedule(latitude, longitude, timezone = 
 }
 
 /**
+ * Dapatkan jadwal sholat hari ini yang selalu segar dan dinamis
+ */
+export function getTodayFreshTimings(city, date = new Date()) {
+  const lat = city?.latitude ?? city?.lat ?? -6.2088;
+  const lon = city?.longitude ?? city?.lon ?? 106.8456;
+  const tz = city?.timezone ?? 7;
+  return calculateOfflineKemenagSchedule(lat, lon, tz, date);
+}
+
+/**
  * Mengambil Jadwal Resmi Kemenag RI dari API Bimas Islam (melalui cache & fallback offline)
  */
 export async function getKemenagPrayerSchedule(city, targetDate = new Date()) {
@@ -128,11 +139,11 @@ export async function getKemenagPrayerSchedule(city, targetDate = new Date()) {
   const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
   const dd = String(targetDate.getDate()).padStart(2, '0');
   const dateKey = `${yyyy}-${mm}-${dd}`;
-  const cacheKey = `kemenag_sched_${city.kemenagId || city.id}_${dateKey}`;
+  const cacheKey = `kemenag_sched_${city?.kemenagId || city?.id || 'city'}_${dateKey}`;
 
   // 1. Cek local cache terlebih dahulu
   try {
-    const cached = localStorage.getItem(cacheKey);
+    const cached = await AsyncStorage.getItem(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached);
       return { timings: parsed, source: "Resmi Kemenag RI (Tersimpan)" };
@@ -140,8 +151,7 @@ export async function getKemenagPrayerSchedule(city, targetDate = new Date()) {
   } catch (e) {}
 
   // 2. Jika online dan memiliki kemenagId, lakukan fetch dari API Bimas Islam
-  const isOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
-  if (city.kemenagId && isOnline) {
+  if (city?.kemenagId) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -164,7 +174,7 @@ export async function getKemenagPrayerSchedule(city, targetDate = new Date()) {
             source: "Resmi Kemenag RI (Bimas Islam)"
           };
           try {
-            localStorage.setItem(cacheKey, JSON.stringify(timings));
+            await AsyncStorage.setItem(cacheKey, JSON.stringify(timings));
           } catch (e) {}
           return { timings, source: "Resmi Kemenag RI (Bimas Islam)" };
         }
@@ -175,13 +185,16 @@ export async function getKemenagPrayerSchedule(city, targetDate = new Date()) {
   }
 
   // 3. Fallback Offline: Hitung secara presisi dengan Engine Hisab Kemenag
+  const lat = city?.latitude ?? city?.lat ?? -6.2088;
+  const lon = city?.longitude ?? city?.lon ?? 106.8456;
+  const tz = city?.timezone ?? 7;
+
   const offlineTimings = calculateOfflineKemenagSchedule(
-    city.latitude,
-    city.longitude,
-    city.timezone || 7,
+    lat,
+    lon,
+    tz,
     targetDate
   );
 
   return { timings: offlineTimings, source: "Hisab Kemenag RI (Offline)" };
 }
-

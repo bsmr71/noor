@@ -2,6 +2,9 @@ import { NativeModules, Platform, PermissionsAndroid } from 'react-native';
 
 const { PrayerNotification } = NativeModules;
 
+let lastNotificationHash = '';
+let lastNotificationTime = 0;
+
 /**
  * Meminta izin notifikasi Android 13+ (POST_NOTIFICATIONS)
  */
@@ -34,12 +37,14 @@ export function updatePrayerCountdownNotification(
   prayerStatus,
   cityName = 'Jakarta',
   isEnabled = true,
-  timings = null
+  timings = null,
+  force = false
 ) {
   if (!PrayerNotification) return;
 
   if (!isEnabled) {
     PrayerNotification.cancelCountdown();
+    lastNotificationHash = '';
     return;
   }
 
@@ -71,7 +76,16 @@ export function updatePrayerCountdownNotification(
       message = `± ${hours} jam ${mins} menit lagi menuju Adzan ${nextPrayer} • Wilayah ${cityName}`;
     }
 
-    const targetTimestampMillis = Date.now() + (totalSeconds * 1000);
+    // Mencegah flickering notifikasi berulang-ulang: hanya update jika menit berubah atau dipaksa
+    const currentHash = `${cityName}-${nextPrayer}-${totalMinutes}-${prayerStatus.nextPrayerKey}`;
+    const nowMs = Date.now();
+    if (!force && currentHash === lastNotificationHash && (nowMs - lastNotificationTime < 45000)) {
+      return;
+    }
+    lastNotificationHash = currentHash;
+    lastNotificationTime = nowMs;
+
+    const targetTimestampMillis = nowMs + (totalSeconds * 1000);
     const progressPercent = Math.min(100, Math.max(0, Number(prayerStatus.progressPercent) || 0));
 
     const timingsMap = {
@@ -118,7 +132,9 @@ export function cancelPrayerCountdownNotification() {
   if (PrayerNotification) {
     try {
       PrayerNotification.cancelCountdown();
-    } catch (e) {}
+      lastNotificationHash = '';
+    } catch (err) {
+      console.warn('Gagal membatalkan notifikasi:', err);
+    }
   }
 }
-
