@@ -114,6 +114,46 @@ export function updatePrayerCountdownNotification(
 }
 
 /**
+ * Mendaftarkan alarm adzan exact di Android AlarmManager agar berbunyi tepat waktu
+ * walau aplikasi sedang ditutup, layar mati, atau HP terkunci.
+ */
+export function scheduleNativePrayerAlarms(
+  timings,
+  cityName = 'Jakarta',
+  muadzinId = 'mulla',
+  isEnabled = true
+) {
+  if (!PrayerNotification?.schedulePrayerTimes || !timings) return;
+  try {
+    PrayerNotification.schedulePrayerTimes(
+      {
+        subuh: timings.subuh || '04:08',
+        dzuhur: timings.dzuhur || '11:38',
+        ashar: timings.ashar || '14:54',
+        maghrib: timings.maghrib || '17:48',
+        isya: timings.isya || '18:59',
+      },
+      cityName,
+      muadzinId,
+      isEnabled
+    );
+  } catch (err) {
+    console.warn('Gagal menjadwalkan alarm adzan native:', err);
+  }
+}
+
+/**
+ * Menghentikan audio adzan native yang sedang berbunyi
+ */
+export function stopNativeAdzanAudio() {
+  if (PrayerNotification?.stopAdzanAudio) {
+    try {
+      PrayerNotification.stopAdzanAudio();
+    } catch (e) {}
+  }
+}
+
+/**
  * Memunculkan alert notifikasi pop-up saat adzan tiba
  */
 export function triggerAdzanNotification(prayerName, cityName, prayerTime) {

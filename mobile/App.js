@@ -39,6 +39,8 @@ import {
   requestNotificationPermission,
   updatePrayerCountdownNotification,
   triggerAdzanNotification,
+  scheduleNativePrayerAlarms,
+  stopNativeAdzanAudio,
   cancelPrayerCountdownNotification,
 } from './src/services/notificationService';
 import { initOfflineDirectories, getMuadzinAudioSource } from './src/services/offlineStorageService';
@@ -367,7 +369,15 @@ export default function App() {
       const status = getCurrentPrayerStatus(currentCity.timings, now);
       updatePrayerCountdownNotification(status, currentCity.name || 'Jakarta', statusBarCountdownEnabled, currentCity.timings);
 
-      // 2. Check Adzan Arrival
+      // 2. Schedule native alarm in Android AlarmManager (tetap berbunyi walau layar mati / HP di kantong)
+      scheduleNativePrayerAlarms(
+        currentCity.timings,
+        currentCity.name || 'Jakarta',
+        selectedMuadzin?.id || 'mulla',
+        adzanReminder
+      );
+
+      // 3. Check Adzan Arrival in Foreground
       if (!adzanReminder) return;
 
       const prayers = [
@@ -378,9 +388,17 @@ export default function App() {
         { key: 'isya', label: 'Isya' },
       ];
 
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
       for (const p of prayers) {
         const time = currentCity.timings[p.key];
-        if (time && time === currentHHMM) {
+        if (!time) continue;
+        const [pH, pM] = time.split(':').map(Number);
+        const prayerMinutes = pH * 60 + pM;
+
+        // Trigger jika waktu saat ini berada di rentang [waktu sholat s/d waktu sholat + 2 menit]
+        const diff = currentMinutes - prayerMinutes;
+        if (diff >= 0 && diff <= 2) {
           const adzanKey = `${todayKey}-${p.key}`;
           if (lastPlayedAdzanRef.current !== adzanKey) {
             lastPlayedAdzanRef.current = adzanKey;
@@ -614,7 +632,10 @@ export default function App() {
         {/* Adzan Alert & Sound Player Modal */}
         <AdzanModal
           visible={adzanModal.visible}
-          onClose={() => setAdzanModal((prev) => ({ ...prev, visible: false }))}
+          onClose={() => {
+            stopNativeAdzanAudio();
+            setAdzanModal((prev) => ({ ...prev, visible: false }));
+          }}
           prayerName={adzanModal.prayerName}
           prayerTime={adzanModal.prayerTime}
           cityName={currentCity?.name || 'Jakarta'}
