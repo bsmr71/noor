@@ -365,6 +365,25 @@ export default function AuthScreen({ onLoginSuccess }) {
                   </>
                 )}
               </TouchableOpacity>
+
+              {/* Guest / Continue Without Account Button */}
+              <TouchableOpacity
+                style={styles.guestBtn}
+                onPress={() => {
+                  onLoginSuccess({
+                    id: 'guest',
+                    name: 'Jamaah Tamu',
+                    email: 'tamu@noor.app',
+                    role: 'jamaah',
+                    isLoggedIn: true,
+                    isGuest: true,
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="account-arrow-right-outline" size={18} color="#059669" />
+                <Text style={styles.guestBtnText}>Lanjutkan Tanpa Akun (Mode Tamu)</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -702,6 +721,23 @@ const styles = StyleSheet.create({
     color: '#6e9890',
     marginTop: 20,
     textAlign: 'center',
+  },
+  guestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    backgroundColor: '#ecfdf5',
+  },
+  guestBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#059669',
   },
 });
 
