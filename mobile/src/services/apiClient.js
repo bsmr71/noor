@@ -12,9 +12,12 @@ export const ADMIN_CONSOLE_URL = `${ENV_API_URL.replace(/\/api\/v1\/?$/, '')}/ad
 const API_HOSTS = Array.from(
   new Set([
     ENV_API_URL,
+    Platform.OS === 'android' ? 'http://10.0.2.2:8000/api/v1' : 'http://127.0.0.1:8000/api/v1',
+    Platform.OS === 'android' ? 'http://10.0.2.2/api/v1' : 'http://127.0.0.1/api/v1',
+    'http://192.168.1.13:8000/api/v1',
+    'http://192.168.1.13/api/v1',
+    'http://noor.test/api/v1',
     PROD_API_URL,
-    Platform.OS === 'android' ? 'http://10.0.2.2:8080/api/v1' : 'http://127.0.0.1:8080/api/v1',
-    'http://muslimpro.test/api/v1',
   ])
 );
 
